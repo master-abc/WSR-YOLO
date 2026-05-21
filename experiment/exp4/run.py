@@ -51,7 +51,7 @@ def create_sample_images(output_dir, n=5):
     """选取或生成用于可视化的样本图像。
 
     查找顺序：
-      1) experiment/datasets/DeepPCB/images/test 真实测试图
+      1) datasets/DeepPCB/images/test 真实测试图
       2) experiment/datasets_mini/mini_deeppcb/images/val mini 数据集
       3) 生成合成 PCB 图（仅 fallback；可视化结果不具论文价值）
     """
@@ -60,7 +60,7 @@ def create_sample_images(output_dir, n=5):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    real_dir = PROJECT_ROOT / "experiment" / "datasets" / "DeepPCB" / "images" / "test"
+    real_dir = PROJECT_ROOT / "datasets" / "DeepPCB" / "images" / "test"
     if real_dir.exists():
         images = sorted(real_dir.glob("*.jpg"))[:n]
         if images:

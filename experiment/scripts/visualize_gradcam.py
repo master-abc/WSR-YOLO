@@ -242,7 +242,7 @@ def main():
                         default=str(PROJECT_ROOT / "experiment" / "exp1" / "runs" / "dwgsa_yolo11m" / "weights" / "best.pt"),
                         help="Path to DWGSA-YOLO model weights")
     parser.add_argument("--images", type=str,
-                        default=str(PROJECT_ROOT / "experiment" / "datasets" / "DeepPCB" / "images" / "test"),
+                        default=str(PROJECT_ROOT / "datasets" / "DeepPCB" / "images" / "test"),
                         help="Path to test images directory")
     parser.add_argument("--output", type=str,
                         default=str(PROJECT_ROOT / "results" / "gradcam"),

@@ -14,13 +14,13 @@ img_dir = base / "images"
 
 if not ann_file.exists():
     print(f"[ERROR] Annotation file not found: {ann_file}")
-    print("Please download the DefectDet dataset first and place it under experiment/datasets/DefectDet/")
+    print("Please download the DefectDet dataset first and place it under datasets/DefectDet/")
     sys.exit(1)
 
 with open(ann_file, "r") as f:
     coco = json.load(f)
 
-out_base = Path(__file__).resolve().parent.parent / "datasets" / "DefectDet_YOLO"
+out_base = Path(__file__).resolve().parent.parent.parent / "datasets" / "DefectDet"
 for split in ["train", "val"]:
     (out_base / "images" / split).mkdir(parents=True, exist_ok=True)
     (out_base / "labels" / split).mkdir(parents=True, exist_ok=True)

@@ -5,7 +5,7 @@
 # Total: 268 images, 1292 annotations, resolution ~1500x1500
 # License: CC BY 4.0
 
-path: ../datasets/DefectDet_YOLO
+path: ../../datasets/DefectDet
 train: images/train
 val: images/val
 test: images/val  # no separate test split; uses val for evaluation

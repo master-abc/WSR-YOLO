@@ -7,7 +7,7 @@
 # Real PCB defect images from industrial inspection
 # Note: no separate test split available, val is used for evaluation
 
-path: ../datasets/PKU_PCB
+path: ../../datasets/PKU_PCB
 train: images/train
 val: images/val
 test: images/val  # no separate test split; uses val for evaluation

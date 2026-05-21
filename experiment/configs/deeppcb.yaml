@@ -5,7 +5,7 @@
 # 1500 images, 6 defect classes, 640x640
 # Classic PCB defect detection benchmark
 
-path: ../datasets/DeepPCB
+path: ../../datasets/DeepPCB
 train: images/train
 val: images/val
 test: images/test

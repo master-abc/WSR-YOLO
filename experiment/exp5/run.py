@@ -322,7 +322,7 @@ def main():
 
     configs_dir = PROJECT_ROOT / "experiment" / "configs"
     clean_data_yaml = str(configs_dir / cfg["datasets"]["deeppcb"])
-    source_dataset = PROJECT_ROOT / "experiment" / "datasets" / "DeepPCB"
+    source_dataset = PROJECT_ROOT / "datasets" / "DeepPCB"
 
     if args.smoke:
         mini_data = PROJECT_ROOT / "experiment" / "datasets_mini" / "mini_deeppcb.yaml"
