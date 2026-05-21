@@ -1,0 +1,42 @@
+# DWGSA-YOLO11: YOLO11m with DWGSA replacing C2PSA
+# 核心改动：Layer 10 的 C2PSA 替换为 DWGSA (Discrete Wavelet Geometry-prior Sparse Attention)
+#
+# 注意：DWGSA 是自定义模块，Ultralytics parse_model 不对自定义模块做 max_channels clip。
+# baseline 的 C2PSA args=1024 会被 scale max_channels=512 clip 成 512；
+# 自定义模块必须直接写最终通道数 512。两套 YAML 的 args 数字不同但实际 c2 通道数相同。
+
+nc: 6  # DeepPCB 6 classes
+scales:
+  m: [0.50, 1.00, 512]
+
+backbone:
+  - [-1, 1, Conv, [64, 3, 2]]          # 0-P1/2
+  - [-1, 1, Conv, [128, 3, 2]]         # 1-P2/4
+  - [-1, 2, C3k2, [256, False, 0.25]]  # 2
+  - [-1, 1, Conv, [256, 3, 2]]         # 3-P3/8
+  - [-1, 2, C3k2, [512, False, 0.25]]  # 4
+  - [-1, 1, Conv, [512, 3, 2]]         # 5-P4/16
+  - [-1, 2, C3k2, [512, True]]         # 6
+  - [-1, 1, Conv, [1024, 3, 2]]        # 7-P5/32
+  - [-1, 2, C3k2, [1024, True]]        # 8
+  - [-1, 1, SPPF, [1024, 5]]           # 9
+  - [-1, 1, DWGSA, [512]]              # 10 ★ DWGSA (c2 must be post-clip value)
+
+head:
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]  # 11
+  - [[-1, 6], 1, Concat, [1]]                    # 12 cat P4
+  - [-1, 2, C3k2, [512, False]]                  # 13
+
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]  # 14
+  - [[-1, 4], 1, Concat, [1]]                    # 15 cat P3
+  - [-1, 2, C3k2, [256, False]]                  # 16 (P3/8-small)
+
+  - [-1, 1, Conv, [256, 3, 2]]                   # 17
+  - [[-1, 13], 1, Concat, [1]]                   # 18 cat P4
+  - [-1, 2, C3k2, [512, False]]                  # 19 (P4/16-medium)
+
+  - [-1, 1, Conv, [512, 3, 2]]                   # 20
+  - [[-1, 10], 1, Concat, [1]]                   # 21 cat P5
+  - [-1, 2, C3k2, [1024, True]]                  # 22 (P5/32-large)
+
+  - [[16, 19, 22], 1, Detect, [nc]]              # 23 Detect(P3, P4, P5)

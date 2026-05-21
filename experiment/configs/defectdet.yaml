@@ -1,0 +1,19 @@
+# DefectDet Dataset Configuration
+# Source: https://data.mendeley.com/datasets/t9d9zs3bmb/1
+# Paper: "DefectDet: An Annotated Dataset of Printed Circuit Board Defects"
+# Full-board manufactured double-layer PCBs with intentional defects
+# Total: 268 images, 1292 annotations, resolution ~1500x1500
+# License: CC BY 4.0
+
+path: ../datasets/DefectDet_YOLO
+train: images/train
+val: images/val
+test: images/val  # no separate test split; uses val for evaluation
+
+# 5 defect classes (from COCO annotation category order)
+names:
+  0: missing_pad
+  1: open_circuit
+  2: short_circuit
+  3: spur
+  4: spurious_copper

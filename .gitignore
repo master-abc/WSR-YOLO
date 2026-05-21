@@ -1,0 +1,41 @@
+# Datasets
+experiment/datasets/
+datasets/
+
+# Training outputs
+runs/
+experiment/exp1/runs/
+experiment/exp2/runs/
+experiment/exp3/runs/
+experiment/exp4/output/
+experiment/exp4/figures/
+experiment/datasets_mini/
+results/
+logs/
+
+# Model weights
+*.pt
+*.pth
+*.onnx
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+wandb/

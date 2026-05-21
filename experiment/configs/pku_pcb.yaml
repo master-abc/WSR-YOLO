@@ -1,0 +1,21 @@
+# PKU-Market-PCB Dataset Configuration for Ultralytics YOLO
+# Source: https://www.kaggle.com/datasets/akhatova/pcb-defects
+# Also on HuggingFace: ampragatish/pcb-defects-dataset
+# License: CC BY-SA 4.0
+#
+# 693 images, 6 defect classes, various resolutions
+# Real PCB defect images from industrial inspection
+# Note: no separate test split available, val is used for evaluation
+
+path: ../datasets/PKU_PCB
+train: images/train
+val: images/val
+test: images/val  # no separate test split; uses val for evaluation
+
+names:
+  0: missing_hole
+  1: mouse_bite
+  2: open_circuit
+  3: short
+  4: spur
+  5: spurious_copper

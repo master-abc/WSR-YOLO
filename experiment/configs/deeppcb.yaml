@@ -1,0 +1,19 @@
+# DeepPCB Dataset Configuration for Ultralytics YOLO
+# Source: https://github.com/tangsanli5201/DeepPCB
+# Paper: "DeepPCB: A Dataset Containing 1500 Image Pairs for PCB Defect Detection", 2019
+#
+# 1500 images, 6 defect classes, 640x640
+# Classic PCB defect detection benchmark
+
+path: ../datasets/DeepPCB
+train: images/train
+val: images/val
+test: images/test
+
+names:
+  0: open
+  1: short
+  2: mousebite
+  3: spur
+  4: copper
+  5: pin-hole
