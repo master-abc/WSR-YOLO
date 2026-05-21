@@ -16,9 +16,6 @@ register_custom_modules()
 from ultralytics import YOLO
 
 data = str(PROJECT_ROOT / "experiment" / "configs" / "deeppcb.yaml")
-mini_deeppcb = PROJECT_ROOT / "experiment" / "datasets_mini" / "mini_deeppcb.yaml"
-if mini_deeppcb.exists():
-    data = str(mini_deeppcb)
 device = "0" if torch.cuda.is_available() else "cpu"
 
 print("=" * 70)
@@ -54,7 +51,7 @@ for name, cfg, desc in exp1_methods:
             device=device, optimizer="SGD", lr0=0.01, seed=42,
             exist_ok=True, verbose=False, workers=0, plots=False,
         )
-        metrics = model.val(data=data, split="test", imgsz=640, batch=2)
+        metrics = model.val(data=data, split="test", imgsz=640, batch=2, workers=0)
         r = {
             "name": name, "desc": desc,
             "map50": float(metrics.box.map50),
@@ -96,7 +93,7 @@ for name, cfg, desc in exp2_methods:
             device=device, optimizer="SGD", lr0=0.01, seed=42,
             exist_ok=True, verbose=False, workers=0, plots=False,
         )
-        metrics = model.val(data=data, split="test", imgsz=640, batch=2)
+        metrics = model.val(data=data, split="test", imgsz=640, batch=2, workers=0)
         r = {
             "name": name, "desc": desc,
             "map50": float(metrics.box.map50),
@@ -116,7 +113,7 @@ print(f"\n{'='*70}")
 print("  EXP3: CROSS-DATASET (mini DefectDet)")
 print(f"{'='*70}")
 
-data_defectdet = str(PROJECT_ROOT / "experiment" / "datasets_mini" / "mini_defectdet.yaml")
+data_defectdet = str(PROJECT_ROOT / "experiment" / "configs" / "defectdet.yaml")
 
 exp3_methods = [
     ("defectdet_baseline", "experiment/configs/yolo11m_baseline.yaml", "Baseline on DefectDet"),
@@ -137,7 +134,7 @@ for name, cfg, desc in exp3_methods:
             device=device, optimizer="SGD", lr0=0.01, seed=42,
             exist_ok=True, verbose=False, workers=0, plots=False,
         )
-        metrics = model.val(data=data_defectdet, split="val", imgsz=640, batch=2)
+        metrics = model.val(data=data_defectdet, split="val", imgsz=640, batch=2, workers=0)
         r = {
             "name": name, "desc": desc,
             "map50": float(metrics.box.map50),

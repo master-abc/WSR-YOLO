@@ -1,6 +1,7 @@
 # Datasets
 experiment/datasets/
 datasets/
+*.zip
 
 # Training outputs
 runs/
