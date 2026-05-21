@@ -376,7 +376,7 @@ def main():
         cfg = yaml.safe_load(f)
 
     exp4_cfg = cfg["exp4"]
-    device_str = cfg["hardware"]["device"]
+    device_str = ",".join(str(d) for d in cfg["hardware"]["device"])
 
     register_custom_modules()
 

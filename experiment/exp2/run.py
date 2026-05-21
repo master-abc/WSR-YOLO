@@ -187,7 +187,7 @@ def generate_figures(results, output_dir):
 def main():
     cfg = load_config()
     train_cfg = cfg["train"].copy()
-    device = cfg["hardware"]["device"]
+    device = ",".join(str(d) for d in cfg["hardware"]["device"])
     exp2_cfg = cfg["exp2"]
     is_smoke = cfg.get("mode", "full") == "smoke"
 
