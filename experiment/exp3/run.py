@@ -1,19 +1,14 @@
 """
 实验3：跨数据集泛化实验
 ========================
-测试模型在不同来源数据集上的泛化能力
-数据集: DefectDet (5类, 268张) + PKU_PCB (6类, 693张)
-
-所有参数从 experiment/configs/experiment.yaml 读取。
+所有参数从 experiment/configs/experiment.yaml 读取，无需命令行参数。
 直接运行: python experiment/exp3/run.py
-Smoke test: python experiment/exp3/run.py --smoke
 """
 
 import sys
 import json
 import time
 import gc
-import argparse
 from pathlib import Path
 from datetime import datetime
 
@@ -219,21 +214,14 @@ def generate_figures(results, output_dir):
     print(f"[FIGURES] Saved to {output_dir}/figure_generalization.png")
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(description="Exp3: Cross-Dataset Generalization")
-    parser.add_argument("--smoke", action="store_true", help="Quick smoke test (2 epochs, batch=2)")
-    parser.add_argument("--full", action="store_true", help="Full training (uses experiment.yaml settings)")
-    return parser.parse_args()
-
-
 def main():
-    args = parse_args()
     cfg = load_config()
     train_cfg = cfg["train"].copy()
     device = cfg["hardware"]["device"]
     exp3_cfg = cfg["exp3"]
+    is_smoke = cfg.get("mode", "full") == "smoke"
 
-    if args.smoke:
+    if is_smoke:
         train_cfg["epochs"] = 2
         train_cfg["batch"] = 2
         train_cfg["workers"] = 0
@@ -245,8 +233,7 @@ def main():
     output_dir = PROJECT_ROOT / "experiment" / exp3_cfg["output_dir"]
     project_dir = str(output_dir / "runs")
 
-    # smoke 模式使用 mini 数据集
-    use_mini = args.smoke and (PROJECT_ROOT / "experiment" / "datasets_mini" / "mini_defectdet.yaml").exists()
+    use_mini = is_smoke and (PROJECT_ROOT / "experiment" / "datasets_mini" / "mini_defectdet.yaml").exists()
 
     experiments = []
     for e in exp3_cfg["experiments"]:

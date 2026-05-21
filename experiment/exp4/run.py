@@ -368,16 +368,7 @@ def visualize_gradcam_comparison(baseline_model, dwgsa_model, img_tensor, origin
     return True
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(description="Exp4: Visualization & Interpretability")
-    parser.add_argument("--smoke", action="store_true", help="Quick test with fewer samples")
-    parser.add_argument("--full", action="store_true", help="Full visualization")
-    parser.add_argument("--dwgsa-weights", type=str, default="", help="Path to trained DWGSA weights")
-    return parser.parse_args()
-
-
 def main():
-    args = parse_args()
     import yaml
 
     cfg_path = PROJECT_ROOT / "experiment" / "configs" / "experiment.yaml"
@@ -386,9 +377,6 @@ def main():
 
     exp4_cfg = cfg["exp4"]
     device_str = cfg["hardware"]["device"]
-
-    if args.dwgsa_weights:
-        exp4_cfg["dwgsa_weights"] = args.dwgsa_weights
 
     register_custom_modules()
 

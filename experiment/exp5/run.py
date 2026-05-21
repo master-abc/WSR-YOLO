@@ -1,30 +1,14 @@
 """
 实验5：噪声鲁棒性实验 (Noise Robustness Study)
 ================================================
-验证DWGSA-YOLO在噪声环境下的部署鲁棒性。
-
-实验逻辑：
-1. 在clean数据上训练模型（Baseline和DWGSA各训练1次）
-2. 对训练好的模型，在5个噪声水平的测试集上分别评估
-3. 对比两个模型在不同噪声下的性能下降
-
-噪声水平基于真实PCB图像分析：
-- Level 0: σ=0 (Clean, 无噪声)
-- Level 1: σ=3 (Low, 真实工业成像水平)
-- Level 2: σ=6 (Medium, 2x真实水平)
-- Level 3: σ=9 (High, 3x真实水平)
-- Level 4: σ=15 (Very High, 5x真实水平)
-
-运行方式:
-    python experiment/exp5/run.py --smoke  # 快速测试
-    python experiment/exp5/run.py --full   # 完整实验
+所有参数从 experiment/configs/experiment.yaml 读取，无需命令行参数。
+直接运行: python experiment/exp5/run.py
 """
 
 import sys
 import json
 import time
 import gc
-import argparse
 from pathlib import Path
 from datetime import datetime
 
@@ -299,20 +283,13 @@ def generate_figures(results, output_dir):
     print(f"[FIGURES] Saved to {output_dir}/figure_noise_*.png")
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(description="Exp5: Noise Robustness Study")
-    parser.add_argument("--smoke", action="store_true", help="Quick smoke test (2 epochs, batch=2)")
-    parser.add_argument("--full", action="store_true", help="Full training")
-    return parser.parse_args()
-
-
 def main():
-    args = parse_args()
     cfg = load_config()
     train_cfg = cfg["train"].copy()
     device = cfg["hardware"]["device"]
+    is_smoke = cfg.get("mode", "full") == "smoke"
 
-    if args.smoke:
+    if is_smoke:
         train_cfg["epochs"] = 2
         train_cfg["batch"] = 2
         train_cfg["workers"] = 0
@@ -324,7 +301,7 @@ def main():
     clean_data_yaml = str(configs_dir / cfg["datasets"]["deeppcb"])
     source_dataset = PROJECT_ROOT / "datasets" / "DeepPCB"
 
-    if args.smoke:
+    if is_smoke:
         mini_data = PROJECT_ROOT / "experiment" / "datasets_mini" / "mini_deeppcb.yaml"
         if mini_data.exists():
             clean_data_yaml = str(mini_data)

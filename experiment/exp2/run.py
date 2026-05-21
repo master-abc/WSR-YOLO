@@ -1,16 +1,14 @@
 """
 实验2：消融实验 (Ablation Study)
 ================================
-所有参数从 experiment/configs/experiment.yaml 读取。
+所有参数从 experiment/configs/experiment.yaml 读取，无需命令行参数。
 直接运行: python experiment/exp2/run.py
-Smoke test: python experiment/exp2/run.py --smoke
 """
 
 import sys
 import json
 import time
 import gc
-import argparse
 from pathlib import Path
 from datetime import datetime
 
@@ -186,21 +184,14 @@ def generate_figures(results, output_dir):
     print(f"[FIGURES] Saved to {output_dir}/figure_ablation.png")
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(description="Exp2: Ablation Study")
-    parser.add_argument("--smoke", action="store_true", help="Quick smoke test (2 epochs, batch=2)")
-    parser.add_argument("--full", action="store_true", help="Full training (uses experiment.yaml settings)")
-    return parser.parse_args()
-
-
 def main():
-    args = parse_args()
     cfg = load_config()
     train_cfg = cfg["train"].copy()
     device = cfg["hardware"]["device"]
     exp2_cfg = cfg["exp2"]
+    is_smoke = cfg.get("mode", "full") == "smoke"
 
-    if args.smoke:
+    if is_smoke:
         train_cfg["epochs"] = 2
         train_cfg["batch"] = 2
         train_cfg["workers"] = 0
@@ -211,7 +202,7 @@ def main():
     configs_dir = PROJECT_ROOT / "experiment" / "configs"
 
     mini_data = PROJECT_ROOT / "experiment" / "datasets_mini" / "mini_deeppcb.yaml"
-    if args.smoke and mini_data.exists():
+    if is_smoke and mini_data.exists():
         data_yaml = str(mini_data)
     else:
         data_yaml = str(configs_dir / cfg["datasets"][exp2_cfg["data"]])
