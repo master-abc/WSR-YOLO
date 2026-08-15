@@ -1,0 +1,138 @@
+\documentclass[conference]{IEEEtran}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{booktabs,multirow,makecell}
+\usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
+
+\newcommand{\method}{WSR-YOLO}
+\newcommand{\module}{WSR}
+\newcommand{\pending}{\textit{pending}}
+\providecommand{\ProjectRoot}{}
+
+\begin{document}
+
+\title{Wavelet-Conditioned Top-$k$ Sparse Routing for Tiny PCB Defect Detection}
+\author{\IEEEauthorblockN{Anonymous Authors}}
+\maketitle
+
+\begin{abstract}
+Tiny printed-circuit-board (PCB) defects occupy few pixels and are easily overwhelmed by repetitive traces and pads. We introduce wavelet-conditioned sparse routing (WSR), a plug-in feature refinement block that uses fixed Haar subbands to route a strict spatial token budget. A lightweight dense router combines directional high-frequency energy, low-frequency context, and its local residual; only the top-$k$ locations are gathered, transformed by a channel MLP, and scattered back. Consequently, the dominant learnable refinement cost scales with the routing ratio rather than the full feature area. WSR is placed at the high-resolution P3/8 stage of YOLO11s, where minute defects remain spatially resolved. We design a leakage-audited evaluation on the industrial DsPCBSD+ dataset and classic DeepPCB benchmark, with recent one-stage and end-to-end detectors, repeated seeds, paired statistics, corruption tests, cross-domain transfer, and frequency counterfactuals. Numerical claims will be inserted only from the versioned experiment pipeline after all preregistered runs finish.
+\end{abstract}
+
+\begin{IEEEkeywords}
+PCB defect detection, sparse routing, wavelet transform, tiny objects, industrial inspection
+\end{IEEEkeywords}
+
+\section{Introduction}
+Automated optical inspection must localize defects that are small, low contrast, and embedded in strongly repeated PCB structures. Global pooling can dilute these signals, whereas dense self-attention allocates computation to the overwhelming background. Frequency cues are useful because broken or excess copper changes local edges, but frequency enhancement alone does not determine where a limited refinement budget should be spent.
+
+We therefore formulate feature enhancement as budgeted routing. A fixed Haar transform supplies directional detail and structural context without adding a learned analysis transform. A small convolutional router scores every P3 location, while the expensive channel transform is executed on only $k=\lceil\rho HW\rceil$ selected tokens. This distinction is important: multiplying a dense feature transform by a soft mask changes activations but does not reduce the transform's spatial complexity.
+
+Our contributions are:
+\begin{itemize}
+    \item We propose WSR, which couples fixed Haar priors to exact top-$k$ gather--refine--scatter computation at P3/8. The channel-refinement FLOPs scale linearly with the route ratio $\rho$.
+    \item We combine high-frequency anomaly cues with low-frequency structural residuals and an input-adaptive two-branch fusion, while exposing route masks and gates for direct mechanism measurement.
+    \item We test the claimed mechanism with route recall/enrichment and pixel-level Haar counterfactuals, rather than relying only on attention visualizations.
+    \item We establish a reproducible two-benchmark protocol with a locked industrial test set, recent detector baselines, repeated seeds, paired inference, robustness, few-shot, and zero-shot cross-domain experiments.
+\end{itemize}
+
+\section{Related Work}
+\subsection{Real-Time Object Detection}
+One-stage YOLO detectors provide strong accuracy--latency trade-offs. Our comparison includes YOLOv10~\cite{yolov10}, YOLO11~\cite{yolo11}, YOLOv12~\cite{yolov12}, and the end-to-end YOLO26~\cite{yolo26}. Detection transformers include RT-DETRv2~\cite{rtdetrv2}, D-FINE~\cite{dfine}, DEIM~\cite{deim}, and RF-DETR~\cite{rfdetr}. RT-DETRv4~\cite{rtdetrv4} is maintained as a deferred comparator because its official training recipe requires a DINOv3 teacher. We compare only official implementations at pinned revisions and keep PCB methods without verified runnable code in a separate reported-results table.
+
+\subsection{Frequency Priors and Sparse Computation}
+WaveCNet~\cite{wavecnet} uses wavelets to reduce aliasing, FcaNet~\cite{fcanet} uses frequency components for channel attention, and HWANet~\cite{hwanet} combines Haar attention with spatial priors for remote-sensing objects. Dual-domain Wavelet-YOLO~\cite{waveletyolo} has also applied wavelet enhancement to PCB defects. Thus, our novelty is not the use of Haar filters alone. WSR instead uses Haar responses to route an explicit token budget at a high-resolution detection stage, and tests the routing mechanism with same-budget enrichment and frequency interventions. Its sparse claim concerns the gathered refinement operator, not a dense operator followed by masking.
+
+\section{Method}
+\subsection{Overview}
+Let $\mathbf{X}\in\mathbb{R}^{C\times H\times W}$ be the P3/8 feature. We split it directly into wave and refinement tensors, $\mathbf{X}_w$ and $\mathbf{X}_r$, each with $C/2$ channels. The wave path supplies gated high-frequency enhancement. The routing path selects a fixed fraction of spatial tokens for channel refinement. Their weighted concatenation is added residually to $\mathbf{X}$. Direct splitting avoids dense $C\times C$ projections at P3 that would otherwise dominate the sparse operator's cost. Unlike the legacy P5 soft-mask design, WSR is inserted after the P3 backbone block while the original P5 C2PSA remains unchanged.
+
+\subsection{Haar-Conditioned Router}
+Grouped stride-two convolution with fixed Haar filters decomposes $\mathbf{X}_w$ into
+\begin{equation}
+ (\mathbf{LL},\mathbf{LH},\mathbf{HL},\mathbf{HH})=\mathcal{H}(\mathbf{X}_w).
+\end{equation}
+We channel-average absolute directional responses and define
+\begin{align}
+ \mathbf{E}_{hf} &= \tfrac{1}{3}\sum_{b\in\{LH,HL,HH\}}\operatorname{mean}_c |\mathbf{b}|,\\
+ \mathbf{E}_{ll} &= \operatorname{mean}_c |\mathbf{LL}|,\\
+ \mathbf{G}_{ll} &= |\mathbf{E}_{ll}-\operatorname{AvgPool}_{3\times3}(\mathbf{E}_{ll})|.
+\end{align}
+After bilinear upsampling and per-image mean normalization, a lightweight convolution predicts routing logits
+\begin{equation}
+ \mathbf{S}=R_\theta([\bar{\mathbf{E}}_{hf};\bar{\mathbf{E}}_{ll};\bar{\mathbf{G}}_{ll}])
+ +\log(1+\bar{\mathbf{E}}_{hf}+\bar{\mathbf{G}}_{ll}).
+\end{equation}
+The additive fixed prior gives meaningful rankings before the learned router converges.
+
+\subsection{Exact Top-$k$ Token Refinement}
+Flattening spatial locations gives $\mathbf{T}\in\mathbb{R}^{HW\times C/2}$. We select
+\begin{equation}
+ \mathcal{I}=\operatorname{TopK}(\mathbf{S},k),\qquad k=\max(k_{min},\operatorname{round}(\rho HW)).
+\end{equation}
+Nine learned directional weights $\bm{a}$ define a shared depthwise $3\times3$ context operator over $\mathbf{X}_r$. This is mathematically equivalent to explicit neighborhood aggregation, but uses an optimized convolution kernel and never forms a dense unfold tensor. We gather its output only at $\mathcal I$; let $\tilde{\mathbf{T}}_{\mathcal I}$ denote the selected local context. Only selected tokens are transformed:
+\begin{equation}
+ \mathbf{T}'_{\mathcal I}=\mathbf{T}_{\mathcal I}+
+ \sigma(\mathbf{S}_{\mathcal I})\odot
+ \operatorname{MLP}(\operatorname{LN}(\mathbf{T}_{\mathcal I}+\gamma(\tilde{\mathbf{T}}_{\mathcal I}-\mathbf{T}_{\mathcal I}))).
+\end{equation}
+Here $\gamma$ is learned. The result is scattered to the original positions; unselected tokens remain unchanged. Shared context aggregation costs $O(9HWC)$, while the channel MLP costs $O(\rho HWC^2)$ instead of $O(HWC^2)$ for full token refinement. We use $\rho=0.125$ by default and report ratio sweeps.
+
+\subsection{Wave Enhancement and Adaptive Fusion}
+A small gate on $[|\mathbf{LH}|;|\mathbf{HL}|;|\mathbf{HH}|]$ yields $\mathbf{A}_w$, and the wave output is $\mathbf{X}'_w=\mathbf{X}_w\odot(1+\mathbf{A}_w)$. Because top-$k$ route density is fixed by construction, it cannot provide sample-specific evidence. Instead, our two-way softmax gate consumes global context, mean HF energy, and selected-route confidence $q=k^{-1}\sum_{i\in\mathcal I}\sigma(S_i)$. The output is
+\begin{equation}
+ \mathbf{Y}=\mathbf{X}+[\alpha_w\mathbf{X}'_w;\alpha_r\mathbf{X}'_r],
+ \quad \alpha_w+\alpha_r=1.
+\end{equation}
+At 640 pixels, WSR adds about 13.3K parameters to the dataset-specific YOLO11s detector. Exact parameters, FLOPs, peak memory, and latency are generated from the frozen checkpoints. FLOPs do not imply negligible wall-clock cost: top-$k$, gather, and scatter are hardware-sensitive and are therefore benchmarked directly.
+
+\section{Experiments}
+\subsection{Leakage-Audited Data Protocol}
+DsPCBSD+~\cite{dspcbsd} is the primary industrial dataset: 10,259 images, 20,276 boxes, and nine classes. Its official 8,208-image training split is stratified once with seed 2026 into 7,387 training and 821 validation images; the 2,051-image official validation split is locked as final test. DeepPCB uses its 850/150/500 train/validation/test split and is identified as a classic benchmark with artificially generated defects, rather than a substitute for real production data. Exact hashes, perceptual near-duplicate candidates, normalized boxes, classes, missing labels, and repeated pseudo-box signatures are audited before training. No exact cross-split duplicate is present locally, but the public releases do not provide complete board/lot identifiers; perceptual candidates are therefore disclosed rather than treated as proof of group independence. DefectDet is excluded from formal tables because its small random split lacks sequence/template groups. The local PKU conversion is excluded because its repeated full-image boxes are invalid annotations. PCB-IND~\cite{pcbind}, a 2026 real-AOI dataset with 4,789 images and 5,932 instances, is reserved as an external extension until its official data and a group-safe split are verified.
+
+\subsection{Comparison Policy}
+We separate two tracks. The architecture-controlled track compares pretrained YOLO11s and WSR-YOLO under identical optimization, resolution, augmentations, and seven paired seeds. Inserting WSR shifts later Ultralytics layer indices, so baseline keys are explicitly remapped around the inserted layer; a run is rejected unless at least 99\% of target parameters are transferred. The current-method track uses pinned official implementations and three seeds for YOLOv10-M, YOLO11-M, YOLOv12-M, YOLO26-M, RF-DETR-M, RT-DETRv2-S, D-FINE-M, and DEIM-D-FINE-M. These methods span different capacity--latency points, so parameters and measured latency accompany accuracy. The controlled YOLO11s pair shares one maximum-80-epoch SGD recipe with identical early stopping; current comparators retain architecture-appropriate official optimizers and schedules, which are reported beside each result. Every model starts from its official checkpoint. All methods receive identical split files, export raw COCO detections, and are evaluated by the same pinned \texttt{pycocotools.COCOeval}. Test labels are never used for architecture or checkpoint selection.
+
+Controlled runs use at most 80 epochs, SGD, cosine decay, 640-pixel inputs, AMP, batch size 8 with nominal batch size 64 for gradient accumulation, and patience-15 early stopping. Architecture selection uses 30 epochs and a fixed 35\% training subset, equally for baseline and candidate, while retaining the complete validation split; final controlled runs use the entire training split. Higher-resolution studies are optional and cannot replace the preregistered 640-pixel main comparison. Preprocessing, forward, and post-processing latency is separated from model-only latency at batch one in FP32 and FP16, with warm-up, repeated trials, peak memory, parameters, and FLOPs on the same hardware.
+
+\subsection{Metrics and Statistics}
+We report COCO AP$_{50:95}$, AP$_{50}$, AP$_{75}$, size-stratified AP, average recall, and per-class AP with the canonical 100 detections per image. We do not report a single precision/recall/F1 operating point because no confidence threshold is selected on the validation set in the preregistered protocol. Seed-level values are summarized by mean, standard deviation, and 95\% Student-$t$ intervals. The primary baseline--ours comparison uses paired seeds, a two-sided Wilcoxon signed-rank test, Holm correction, and paired Cohen's $d_z$. Seven pairs are used because five pairs cannot attain $p<.05$ in an exact two-sided Wilcoxon test.
+
+\subsection{Main Results}
+The following table is generated from schema-validated, frozen seed-level JSON files. It must not be manually filled.
+\IfFileExists{\ProjectRoot{}experiment/paper_b/generated/tables/summary.tex}{%
+\input{\ProjectRoot{}experiment/paper_b/generated/tables/summary.tex}%
+}{%
+\begin{center}\pending: run the preregistered experiment matrix.\end{center}%
+}
+
+\subsection{Ablations Without Test-Set Selection}
+Placement (P3/P4/P5/P3+P4), route ratio (5/12.5/25/100\%), removal of HF or LL cues, fixed versus learned routing, and adaptive versus equal fusion are selected on validation only with three seeds. After freezing the variant, only the preregistered baseline and proposed model are evaluated on test. This prevents repeated test-set probing.
+
+\subsection{Mechanism, Robustness, and Transfer Tests}
+Route recall measures the fraction of ground-truth feature pixels selected; route enrichment divides this recall by the same-budget random expectation $\rho$. Center-hit rate and wave-gate inside/outside ratios provide complementary diagnostics. Pixel-level Haar counterfactuals retain only LL, retain only HF, or remove one directional band. Robustness uses deterministic Gaussian, Poisson, speckle, motion/defocus blur, brightness, contrast, and JPEG corruption at five severities. Data-efficiency curves use 1/5/10/25/50/100\% of training images. Zero-shot transfer maps DeepPCB and DsPCBSD+ to five shared classes and trains on one domain while testing the other without fine-tuning.
+
+\section{Reproducibility and Limitations}
+Formal runs require a clean, resolvable Git commit and a full content-hash dataset audit. Every result stores the split and model seeds, protocol and source hashes, pretrained-transfer coverage, package versions, device, checkpoint hash, prediction hash, and unified-evaluator output; validated result JSONs are then frozen into a tracked registry. Official external repositories are pinned to exact commits. DsPCBSD+ annotations contain sub-pixel boundary rounding; the converter clips only errors below 0.5 pixel and records the count. Public split files lack complete board/lot provenance, so perceptual screening reduces but cannot eliminate group-leakage uncertainty. No claim of state-of-the-art performance or statistical superiority is made until all runs are complete. Haar priors may be less useful for color-dominated defects, top-$k$ selection can miss weak early signals, and sparse indexing may have nontrivial latency despite low arithmetic overhead.
+
+\section{Conclusion}
+WSR turns wavelet cues into a measurable computation-allocation mechanism for tiny PCB defects. Its central hypothesis is falsifiable: at a fixed token budget, learned routes should be enriched inside true defect regions and improve detection or robustness over matched baselines. The accompanying protocol is designed to test that hypothesis without leakage or selective reporting.
+
+\begin{thebibliography}{99}
+\bibitem{yolov10} A. Wang et al., ``YOLOv10: Real-Time End-to-End Object Detection,'' in \textit{NeurIPS}, 2024.
+\bibitem{yolo11} G. Jocher and J. Qiu, ``Ultralytics YOLO11,'' 2024. [Online]. Available: \url{https://github.com/ultralytics/ultralytics}
+\bibitem{yolov12} Y. Tian et al., ``YOLOv12: Attention-Centric Real-Time Object Detectors,'' in \textit{NeurIPS}, 2025.
+\bibitem{yolo26} G. Jocher, J. Qiu, M. Liu, et al., ``Ultralytics YOLO26: Unified Real-Time End-to-End Vision Models,'' arXiv:2606.03748, 2026.
+\bibitem{rtdetrv2} W. Lv et al., ``RT-DETRv2: Improved Baseline with Bag-of-Freebies for Real-Time Detection Transformer,'' arXiv:2407.17140, 2024.
+\bibitem{dfine} Y. Peng et al., ``D-FINE: Redefine Regression Task in DETRs as Fine-grained Distribution Refinement,'' in \textit{ICLR}, 2025.
+\bibitem{deim} S. Huang et al., ``DEIM: DETR with Improved Matching for Fast Convergence,'' in \textit{CVPR}, 2025.
+\bibitem{rfdetr} I. Robinson, P. Robicheaux, M. Popov, D. Ramanan, and N. Peri, ``RF-DETR: Neural Architecture Search for Real-Time Detection Transformers,'' arXiv:2511.09554, 2025.
+\bibitem{rtdetrv4} ``RT-DETRv4: Painlessly Furthering Real-Time Object Detection with Vision Foundation Models,'' in \textit{ECCV}, 2026. [Online]. Available: \url{https://github.com/RT-DETRs/RT-DETRv4}
+\bibitem{wavecnet} Q. Li et al., ``WaveCNet: Wavelet Integrated CNNs to Suppress Aliasing Effect for Noise-Robust Image Classification,'' \textit{IEEE TIP}, 2021.
+\bibitem{fcanet} Z. Qin et al., ``FcaNet: Frequency Channel Attention Networks,'' in \textit{ICCV}, 2021.
+\bibitem{hwanet} B. Jin et al., ``HWANet: A Haar Wavelet-Based Attention Network for Remote Sensing Object Detection,'' \textit{PLOS ONE}, 2025.
+\bibitem{waveletyolo} X. Zhong and K. Li, ``A PCB Bare Board Defects Detection Method Based on Dual-Domain Wavelet-YOLO,'' 2024, doi: 10.1145/3711129.3711338.
+\bibitem{dspcbsd} S. Lv et al., ``A Dataset for Deep Learning Based Detection of Printed Circuit Board Surface Defect,'' \textit{Scientific Data}, vol. 11, 2024.
+\bibitem{pcbind} H. Yan, X. Yu, B. Ma, et al., ``Industrial Printed Circuit Board Surface Defect Dataset for Object Detection,'' \textit{Scientific Data}, 2026, doi: 10.1038/s41597-026-07684-4.
+\end{thebibliography}
+
+\end{document}

@@ -1,5 +1,9 @@
 # DWGSA-YOLO: Discrete Wavelet Geometry-prior Sparse Attention for PCB Defect Detection
 
+> 新的 CCF-B 目标实验轨道、数据审计和近期 SOTA 适配见 [experiment/paper_b/README.md](experiment/paper_b/README.md)。旧的 exp1--exp5 仅用于历史回溯，不能直接支撑论文结论。
+
+> 当前论文方法已收敛为 YOLO11s P3/8 上的 WSR（Wavelet-Conditioned Top-k Sparse Routing）。正式实验只使用 `experiment/paper_b/`，论文源码位于 `paper/main.tex`：该轨道强制统一 COCOeval、插层预训练权重覆盖检查、干净 Git 提交和冻结结果。下文旧 YOLO11m/DWGSA/exp1--exp5 命令均视为 legacy，不得与新主表混用。
+
 基于 Haar 小波分解和几何先验稀疏注意力的 PCB 缺陷检测方法，集成于 YOLO11m 架构。
 
 ## 环境安装

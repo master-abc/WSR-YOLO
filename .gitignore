@@ -40,3 +40,10 @@ Thumbs.db
 # Logs
 *.log
 wandb/
+
+# LaTeX build products (paper source remains tracked)
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.pdf
+paper/*.synctex.gz

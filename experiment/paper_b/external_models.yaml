@@ -1,0 +1,96 @@
+models:
+  yolo26_m:
+    family: ultralytics_native
+    venue: arXiv 2026
+    package: ultralytics==8.4.50
+    model: yolo26m.pt
+    role: current_end_to_end_one_stage
+  rf_detr_m:
+    family: rfdetr
+    venue: ICLR 2026
+    repository: https://github.com/roboflow/rf-detr.git
+    commit: d5fc2178c845e72659e45bbba1b10edd47403377
+    model_class: RFDETRMedium
+    resolution: 640
+    role: current_nas_transformer
+  yolov10_m:
+    family: ultralytics_fork
+    venue: NeurIPS 2024
+    repository: https://github.com/THU-MIG/yolov10.git
+    commit: 453c6e38a51e9d1d5a2aa5fb7f1014a711913397
+    model: yolov10m.pt
+    approximate_parameters_m: 15.4
+    role: current_one_stage
+  rtdetrv2_s:
+    family: detr
+    venue: arXiv 2024
+    repository: https://github.com/lyuwenyu/RT-DETR.git
+    commit: 068dfde65f2667ad6555883c69d73de886518cad
+    workdir: rtdetrv2_pytorch
+    entrypoint: tools/train.py
+    config: configs/rtdetrv2/rtdetrv2_r18vd_120e_coco.yml
+    pretrained_file: rtdetrv2_r18vd_120e_coco_rerun_48.1.pth
+    pretrained_url: https://github.com/lyuwenyu/storage/releases/download/v0.2/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth
+    approximate_parameters_m: 20.0
+    role: real_time_transformer
+  dfine_m:
+    family: detr
+    venue: ICLR 2025 Spotlight
+    repository: https://github.com/Peterande/D-FINE.git
+    commit: 267a6da6d04c8ad52e54120692896515b9e55981
+    entrypoint: train.py
+    config: configs/dfine/dfine_hgnetv2_m_coco.yml
+    pretrained_file: dfine_m_coco.pth
+    pretrained_url: https://github.com/Peterande/storage/releases/download/dfinev1.0/dfine_m_coco.pth
+    approximate_parameters_m: 19.0
+    role: current_end_to_end
+  deim_dfine_m:
+    family: detr
+    venue: CVPR 2025
+    repository: https://github.com/Intellindust-AI-Lab/DEIM.git
+    commit: 09d35d53d39ee3145a1e61e3a989b28b9468d1dd
+    entrypoint: train.py
+    config: configs/deim_dfine/deim_hgnetv2_m_coco.yml
+    pretrained_file: deim_dfine_m_coco.pth
+    pretrained_gdrive_id: 18Lj2a6UN6k_n_UzqnJyiaiLGpDzQQit8
+    approximate_parameters_m: 19.0
+    role: data_efficient_end_to_end
+  yolov12_m:
+    family: ultralytics_fork
+    venue: NeurIPS 2025
+    repository: https://github.com/sunsmarterjie/yolov12.git
+    commit: 01a22c0603e0eaa6d9bd62120a391e744d92cea2
+    model: yolov12m.pt
+    approximate_parameters_m: 19.6
+    role: current_attention_one_stage
+
+reported_only:
+  scp_detr:
+    reason: "The linked repository contains no runnable implementation at the pinned revision."
+    repository: https://github.com/Yttong-rr/SCPDETR
+    commit: b7c708d47aca4eb20c78ad903f989cdea5f006b0
+  lsdm_pcb:
+    reason: "No official runnable implementation was found; use paper-reported numbers only in a separate table."
+  pcb_mmf:
+    reason: "No verified official training repository; cite as a 2026 domain method without mixing its split-specific values."
+    paper: https://doi.org/10.1038/s41598-026-49734-2
+  pcb_fs:
+    reason: "No verified official training repository; reported values use a different protocol."
+    paper: https://doi.org/10.3390/sym17122020
+  structure_guided_pretraining:
+    reason: "2026 arXiv result without a verified runnable release at audit time."
+    paper: https://arxiv.org/abs/2606.03508
+  unipcb_generation_assisted:
+    reason: "Uses generated data and a different 2,027-image construction, so its values are not directly rankable."
+    paper: https://arxiv.org/abs/2605.04635
+
+deferred_runnable:
+  rtdetrv4_m:
+    reason: "Official training requires a DINOv3 teacher repository and weights; run only on an adequate isolated environment."
+    repository: https://github.com/RT-DETRs/RT-DETRv4.git
+    commit: 55fefaaed7efe2a5f72d0a18fd4e05965e35c292
+    config: configs/rtv4/rtv4_hgnetv2_m_coco.yml
+  deimv2:
+    reason: "Current 2026 comparator; deferred until its DINOv3 environment and memory budget are available."
+    repository: https://github.com/Intellindust-AI-Lab/DEIMv2.git
+    commit: add5bcdb499bf7b8a366bfeac1a47d3dc278de27

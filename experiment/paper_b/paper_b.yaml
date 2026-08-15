@@ -1,0 +1,150 @@
+protocol_version: 2
+split_seed: 2026
+output_root: generated
+
+reproducibility:
+  require_clean_git_for_formal: true
+  minimum_pretrained_fraction: 0.99
+  freeze_formal_results: true
+  unified_evaluator: pycocotools.COCOeval
+  smoke_validation_images: 50
+
+datasets:
+  deeppcb:
+    enabled: true
+    source: ../configs/deeppcb.yaml
+    split_mode: preserve
+    role: secondary_classic
+  defectdet:
+    enabled: false
+    source: ../configs/defectdet.yaml
+    split_mode: resplit-all
+    train_fraction: 0.70
+    val_fraction: 0.15
+    role: exploratory_small
+    note: "Disabled from formal tables until sequence/template group IDs support a leakage-safe split."
+  dspcbsd_plus:
+    enabled: true
+    source: ../../datasets/DsPCBSD_plus/yolo_source/dataset.yaml
+    split_mode: official-val-as-test
+    train_fraction: 0.90
+    role: primary_industrial
+    note: "Official validation is reserved as untouched final test."
+  pcbind:
+    enabled: false
+    source: ../configs/pcbind.yaml
+    split_mode: preserve
+    role: external_industrial_2026
+    note: "Enable after acquiring the official PCB-IND release and verifying board/lot identifiers."
+
+controlled_track:
+  # Seven paired seeds allow an exact two-sided Wilcoxon test to resolve p < .05.
+  seeds: [13, 42, 3407, 4703, 8391, 9475, 10501]
+  secondary_seeds: [13, 42, 3407]
+  models:
+    - name: yolo11s
+      architecture: yolo11s.yaml
+      pretrained: yolo11s.pt
+      role: baseline
+    - name: wsr_yolo11s_p3
+      architecture: ../configs/wsr_yolo11s_p3.yaml
+      pretrained: yolo11s.pt
+      role: proposed
+  train:
+    # Throughput-calibrated on the available RTX 3060 6 GB. Early stopping keeps
+    # the maximum budget equal while avoiding hundreds of unnecessary epochs.
+    epochs: 80
+    imgsz: 640
+    batch: 8
+    nbs: 64
+    optimizer: SGD
+    lr0: 0.01
+    lrf: 0.01
+    momentum: 0.937
+    weight_decay: 0.0005
+    warmup_epochs: 3.0
+    cos_lr: true
+    amp: true
+    deterministic: true
+    patience: 15
+    close_mosaic: 10
+    mosaic: 1.0
+    mixup: 0.0
+    copy_paste: 0.0
+    workers: 2
+    plots: true
+  high_resolution_study:
+    imgsz: [960, 1280]
+    seeds: [13, 42, 3407]
+
+sota_track:
+  seeds: [13, 42, 3407]
+  datasets: [dspcbsd_plus]
+  external_registry: external_models.yaml
+  policy: official_implementation_coco_pretraining_family_specific_optimization
+
+pilot_gate:
+  dataset: dspcbsd_plus
+  seeds: [13, 42, 3407]
+  baseline: yolo11s_val_baseline
+  baseline_architecture: yolo11s.yaml
+  candidate: route_p3_12p5
+  formal_model: wsr_yolo11s_p3
+  pretrained: yolo11s.pt
+  validation_only: true
+  mechanism_split: val
+  mechanism_limit: 200
+  latency_seed: 13
+  latency_split: val
+  latency_warmup: 50
+  latency_repetitions: 200
+  minimum_mean_ap50_95_gain: 0.01
+  minimum_route_enrichment: 1.0
+  maximum_latency_ratio: 1.20
+  train:
+    # Architecture selection is deliberately cheaper and validation-only. The
+    # formal track below still trains on 100% of the registered training split.
+    epochs: 30
+    fraction: 0.35
+    subset_seed: 2027
+    patience: 10
+    plots: false
+
+ablation_track:
+  dataset: dspcbsd_plus
+  seeds: [13, 42, 3407]
+  pretrained: yolo11s.pt
+  train:
+    epochs: 30
+    fraction: 0.35
+    subset_seed: 2027
+    patience: 10
+    plots: false
+  models:
+    - {name: route_p3_12p5, architecture: ../configs/wsr_yolo11s_p3.yaml}
+    - {name: route_p4_12p5, architecture: ../configs/wsr_yolo11s_p4.yaml}
+    - {name: route_p5_12p5, architecture: ../configs/wsr_yolo11s_p5.yaml}
+    - {name: route_p3p4_12p5, architecture: ../configs/wsr_yolo11s_p3p4.yaml}
+    - {name: route_p3_5, template: ../configs/wsr_yolo11s_p3.yaml, router_args: [256, 0.05, 0.25, true, true, true, true]}
+    - {name: route_p3_25, template: ../configs/wsr_yolo11s_p3.yaml, router_args: [256, 0.25, 0.25, true, true, true, true]}
+    - {name: route_p3_100, template: ../configs/wsr_yolo11s_p3.yaml, router_args: [256, 1.0, 0.25, true, true, true, true]}
+    - {name: route_p3_no_hf, template: ../configs/wsr_yolo11s_p3.yaml, router_args: [256, 0.125, 0.25, false, true, true, true]}
+    - {name: route_p3_no_ll, template: ../configs/wsr_yolo11s_p3.yaml, router_args: [256, 0.125, 0.25, true, false, true, true]}
+    - {name: route_p3_fixed, template: ../configs/wsr_yolo11s_p3.yaml, router_args: [256, 0.125, 0.25, true, true, true, false]}
+    - {name: route_p3_equal_fusion, template: ../configs/wsr_yolo11s_p3.yaml, router_args: [256, 0.125, 0.25, true, true, false, true]}
+
+evaluation:
+  backend: pycocotools.COCOeval
+  conf: 0.001
+  iou: 0.7
+  prediction_max_det: 300
+  max_det: 100
+  metrics: [map50_95, map50, map75, ap_small, ap_medium, ap_large, ar_100, per_class_ap50_95]
+  confidence_intervals: 0.95
+  paired_test: wilcoxon
+  multiplicity: holm
+
+robustness:
+  corruptions: [gaussian, poisson, speckle, motion_blur, defocus_blur, brightness, contrast, jpeg]
+  severities: [1, 2, 3, 4, 5]
+  seed: 2026

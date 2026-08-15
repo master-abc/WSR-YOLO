@@ -296,6 +296,263 @@ class AdaptiveFusion(nn.Module):
         return g_wave, g_sparse
 
 
+class TopKTokenRefinement(nn.Module):
+    """Refine only a routed subset of spatial tokens.
+
+    Unlike the soft masking used by :class:`GeometrySparseAttn`, the expensive
+    channel MLP in this block is evaluated on ``K = ratio * H * W`` tokens and
+    the refined tokens are scattered back to the feature map.  The router
+    itself remains dense and lightweight.  This separation makes the sparse
+    claim measurable: the refinement FLOPs scale linearly with ``ratio``.
+    """
+
+    def __init__(self, channels, ratio=0.125, hidden_ratio=0.25, min_tokens=4):
+        super().__init__()
+        if not 0.0 < ratio <= 1.0:
+            raise ValueError(f"ratio must be in (0, 1], got {ratio}")
+        self.channels = channels
+        self.ratio = float(ratio)
+        self.min_tokens = int(min_tokens)
+        hidden = max(int(channels * hidden_ratio), 16)
+        self.neighborhood_logits = nn.Parameter(torch.zeros(9))
+        self.context_scale = nn.Parameter(torch.tensor(1.0))
+        self.norm = nn.LayerNorm(channels)
+        self.mlp = nn.Sequential(
+            nn.Linear(channels, hidden, bias=False),
+            nn.SiLU(inplace=True),
+            nn.Linear(hidden, channels, bias=False),
+        )
+
+    def forward(self, x, route_logits, capture_diagnostics=False):
+        b, c, h, w = x.shape
+        n = h * w
+        k = min(n, max(self.min_tokens, int(round(n * self.ratio))))
+
+        scores = route_logits.flatten(1)
+        indices = torch.topk(scores, k=k, dim=1, sorted=False).indices
+        index_c = indices.unsqueeze(-1).expand(-1, -1, c)
+
+        tokens = x.flatten(2).transpose(1, 2)  # B,N,C
+        selected = torch.gather(tokens, dim=1, index=index_c)
+
+        # A shared depthwise 3x3 convolution is mathematically identical to
+        # gathering nine neighbours and taking their learned weighted sum, but
+        # maps to a substantially faster CUDA kernel. Only the K routed context
+        # tokens are gathered; the expensive channel MLP remains strictly sparse.
+        # getattr preserves inference compatibility with checkpoints produced
+        # before neighbourhood aggregation was introduced.
+        neighborhood_logits = getattr(self, "neighborhood_logits", None)
+        if neighborhood_logits is None:
+            neighborhood_weights = x.new_full((9,), 1.0 / 9.0)
+            context_scale = x.new_tensor(1.0)
+        else:
+            neighborhood_weights = neighborhood_logits.softmax(0).to(dtype=x.dtype)
+            context_scale = self.context_scale.to(dtype=x.dtype)
+        kernel = neighborhood_weights.view(1, 1, 3, 3).expand(c, 1, 3, 3).contiguous()
+        context_map = F.conv2d(
+            F.pad(x, (1, 1, 1, 1), mode="replicate"), kernel, groups=c
+        )
+        context_tokens = context_map.flatten(2).transpose(1, 2)
+        local_context = torch.gather(context_tokens, dim=1, index=index_c)
+        refinement_input = selected + context_scale * (local_context - selected)
+        # Apply sigmoid after gathering so the dense routing map is not
+        # materialised during ordinary training/inference.
+        selected_logits = torch.gather(scores, dim=1, index=indices)
+        selected_scores = torch.sigmoid(selected_logits)
+        gate = selected_scores.unsqueeze(-1)
+        gate = gate.to(dtype=selected.dtype)
+        refined = selected + self.mlp(self.norm(refinement_input)) * gate
+        # Haar buffers and routing arithmetic can remain FP32 under autocast,
+        # while feature tokens are FP16. Scatter requires an exact dtype match.
+        refined = refined.to(dtype=tokens.dtype)
+
+        output = tokens.clone().scatter(1, index_c, refined)
+        output = output.transpose(1, 2).reshape(b, c, h, w)
+
+        hard_mask = None
+        route_scores = None
+        if capture_diagnostics:
+            hard_mask = x.new_zeros((b, n))
+            hard_mask.scatter_(1, indices, 1.0)
+            hard_mask = hard_mask.view(b, 1, h, w)
+            route_scores = torch.sigmoid(route_logits)
+        route_confidence = selected_scores.mean(dim=1, keepdim=True)
+        return output, route_confidence, hard_mask, route_scores
+
+
+class WaveletContextRouter(nn.Module):
+    """Build routing logits from fixed Haar subbands and spatial context."""
+
+    def __init__(self, channels, use_hf=True, use_ll=True, learned_router=True):
+        super().__init__()
+        self.use_hf = bool(use_hf)
+        self.use_ll = bool(use_ll)
+        self.learned_router = bool(learned_router)
+        self.dwt = HaarDWT2D(channels)
+        self.router = nn.Sequential(
+            nn.Conv2d(3, 16, 3, 1, 1, bias=False),
+            nn.BatchNorm2d(16),
+            nn.SiLU(inplace=True),
+            nn.Conv2d(16, 1, 1, bias=True),
+        )
+        self.wave_gate = nn.Sequential(
+            nn.Conv2d(3, 8, 3, 1, 1, bias=False),
+            nn.SiLU(inplace=True),
+            nn.Conv2d(8, 1, 1, bias=True),
+            nn.Sigmoid(),
+        )
+
+    def forward(self, x):
+        ll, lh, hl, hh = self.dwt(x)
+        directional = torch.cat([
+            lh.abs().mean(1, keepdim=True),
+            hl.abs().mean(1, keepdim=True),
+            hh.abs().mean(1, keepdim=True),
+        ], dim=1)
+        hf_energy = directional.mean(1, keepdim=True)
+        ll_context = ll.abs().mean(1, keepdim=True)
+        ll_residual = (ll_context - F.avg_pool2d(ll_context, 3, 1, 1)).abs()
+
+        size = x.shape[2:]
+        hf_full = F.interpolate(hf_energy, size=size, mode="bilinear", align_corners=False)
+        ll_full = F.interpolate(ll_context, size=size, mode="bilinear", align_corners=False)
+        geo_full = F.interpolate(ll_residual, size=size, mode="bilinear", align_corners=False)
+
+        # Normalisation is per image, so routing is stable across illumination.
+        hf_norm = hf_full / (hf_full.mean(dim=(2, 3), keepdim=True) + 1e-6)
+        ll_norm = ll_full / (ll_full.mean(dim=(2, 3), keepdim=True) + 1e-6)
+        geo_norm = geo_full / (geo_full.mean(dim=(2, 3), keepdim=True) + 1e-6)
+        if not self.use_hf:
+            hf_norm = torch.zeros_like(hf_norm)
+        if not self.use_ll:
+            ll_norm = torch.zeros_like(ll_norm)
+            geo_norm = torch.zeros_like(geo_norm)
+        context = torch.cat([hf_norm, ll_norm, geo_norm], dim=1)
+
+        # The fixed high-frequency prior gives meaningful routing before the
+        # learned router has converged; gradients still flow through router.
+        learned_logits = self.router(context) if self.learned_router else torch.zeros_like(hf_norm)
+        route_logits = learned_logits + torch.log1p(hf_norm + geo_norm)
+        if self.use_hf:
+            wave_attention = F.interpolate(
+                self.wave_gate(directional), size=size, mode="bilinear", align_corners=False
+            )
+        else:
+            wave_attention = torch.zeros_like(hf_norm)
+        hf_for_fusion = hf_energy if self.use_hf else torch.zeros_like(hf_energy)
+        return route_logits, wave_attention, hf_for_fusion
+
+
+class DWGSARouter(nn.Module):
+    """Wavelet-conditioned top-k sparse router for high-resolution features.
+
+    This research variant is intended for the P3/P4 placement study.  It keeps
+    a dense, inexpensive Haar router but applies the learnable token-refinement
+    MLP only to a fixed budget of routed positions.  Diagnostic tensors are
+    exposed after inference for route-recall and gate-correlation experiments.
+
+    YAML interface (custom modules are not channel-scaled by Ultralytics):
+        ``DWGSARouter(channels, route_ratio=0.125, hidden_ratio=0.25)``
+    """
+
+    def __init__(
+        self,
+        channels,
+        route_ratio=0.125,
+        hidden_ratio=0.25,
+        use_hf=True,
+        use_ll=True,
+        adaptive_fusion=True,
+        learned_router=True,
+    ):
+        super().__init__()
+        self.channels = int(channels)
+        self.route_ratio = float(route_ratio)
+        self.adaptive_fusion = bool(adaptive_fusion)
+        half = max(self.channels // 2, 16)
+        if half * 2 != self.channels:
+            raise ValueError("DWGSARouter requires an even channel count")
+
+        # Direct channel splitting avoids two dense CxC projections at P3.
+        # Those projections dominated FLOPs and obscured the sparse-compute
+        # benefit without being necessary for routing or residual fusion.
+        self.project = nn.Identity()
+        self.context_router = WaveletContextRouter(
+            half, use_hf=use_hf, use_ll=use_ll, learned_router=learned_router
+        )
+        self.sparse_refine = TopKTokenRefinement(
+            half, ratio=route_ratio, hidden_ratio=hidden_ratio
+        )
+        fusion_hidden = max(self.channels // 16, 8)
+        self.fusion = nn.Sequential(
+            nn.Linear(self.channels + 2, fusion_hidden),
+            nn.SiLU(inplace=True),
+            nn.Linear(fusion_hidden, 2),
+            nn.Softmax(dim=1),
+        )
+        self.output = nn.Identity()
+
+        # Diagnostics are opt-in: retaining four feature maps on every forward
+        # needlessly increases memory pressure in formal speed/accuracy runs.
+        self.diagnostics_enabled = False
+        self.last_route_mask = None
+        self.last_route_scores = None
+        self.last_wave_attention = None
+        self.last_fusion_weights = None
+
+    def enable_diagnostics(self, enabled=True):
+        self.diagnostics_enabled = bool(enabled)
+        if not self.diagnostics_enabled:
+            self.last_route_mask = None
+            self.last_route_scores = None
+            self.last_wave_attention = None
+            self.last_fusion_weights = None
+        return self
+
+    def forward(self, x):
+        if x.shape[2] < 2 or x.shape[3] < 2:
+            return x
+
+        projected = self.project(x)
+        wave, sparse = projected.chunk(2, dim=1)
+        route_logits, wave_attention, hf_energy = self.context_router(wave)
+        sparse_out, route_confidence, route_mask, route_scores = self.sparse_refine(
+            sparse, route_logits, capture_diagnostics=self.diagnostics_enabled
+        )
+
+        wave_out = wave * (1.0 + wave_attention)
+        global_context = F.adaptive_avg_pool2d(x, 1).flatten(1)
+        hf_ratio = hf_energy.mean(dim=(1, 2, 3), keepdim=False).unsqueeze(1)
+        if self.adaptive_fusion:
+            # Top-k density is fixed by construction and therefore contains no
+            # sample-specific information. Selected-route confidence varies
+            # with the input and provides a meaningful fusion signal.
+            weights = self.fusion(torch.cat([global_context, hf_ratio, route_confidence], dim=1))
+        else:
+            weights = x.new_full((x.shape[0], 2), 0.5)
+        wave_weight = weights[:, 0].view(-1, 1, 1, 1)
+        sparse_weight = weights[:, 1].view(-1, 1, 1, 1)
+
+        fused = torch.cat([wave_out * wave_weight, sparse_out * sparse_weight], dim=1)
+        out = self.output(fused) + x
+
+        if self.diagnostics_enabled:
+            self.last_route_mask = route_mask.detach()
+            self.last_route_scores = route_scores.detach()
+            self.last_wave_attention = wave_attention.detach()
+            self.last_fusion_weights = weights.detach()
+        return out
+
+
+class WSR(DWGSARouter):
+    """Paper-facing name for Wavelet-Conditioned Top-k Sparse Routing.
+
+    ``DWGSARouter`` remains available so legacy checkpoints can be loaded.
+    """
+
+    pass
+
+
 class DWGSA(nn.Module):
     """Discrete Wavelet Geometry-prior Sparse Attention.
 
