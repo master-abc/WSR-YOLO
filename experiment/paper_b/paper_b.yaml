@@ -135,6 +135,9 @@ ablation_track:
 
 evaluation:
   backend: pycocotools.COCOeval
+  # Low-confidence prediction export is explicitly chunked. A single-image
+  # batch is the safe audited default for the available 6 GB GPU.
+  batch: 1
   conf: 0.001
   iou: 0.7
   prediction_max_det: 300

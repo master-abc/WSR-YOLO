@@ -133,6 +133,9 @@ def predict_yolo_to_coco(
 ) -> Path:
     """Export Ultralytics predictions without using its AP implementation."""
 
+    if int(batch) < 1:
+        raise ValueError("Evaluation batch must be at least 1")
+
     annotations = Path(annotations).resolve()
     image_dir = Path(image_dir).resolve()
     output = Path(output).resolve()
@@ -144,37 +147,52 @@ def predict_yolo_to_coco(
         raise FileNotFoundError(f"COCO evaluation images are missing, first={missing[0]}")
     category_ids = [item["id"] for item in sorted(payload["categories"], key=lambda item: item["id"])]
 
-    results = yolo.predict(
-        source=paths,
-        stream=True,
-        imgsz=int(imgsz),
-        batch=int(batch),
-        device=device,
-        conf=float(conf),
-        iou=float(iou),
-        max_det=int(max_det),
-        verbose=False,
-    )
     predictions: list[dict[str, Any]] = []
-    for image, result in zip(images, results):
-        boxes = getattr(result, "boxes", None)
-        if boxes is None or len(boxes) == 0:
-            continue
-        xyxy = boxes.xyxy.detach().cpu().tolist()
-        scores = boxes.conf.detach().cpu().tolist()
-        classes = boxes.cls.detach().cpu().tolist()
-        for coordinates, score, class_value in zip(xyxy, scores, classes):
-            x1, y1, x2, y2 = (float(value) for value in coordinates)
-            class_index = int(class_value)
-            if not 0 <= class_index < len(category_ids):
-                raise ValueError(f"Predicted class {class_index} is outside {len(category_ids)} classes")
-            predictions.append(
-                {
-                    "image_id": int(image["id"]),
-                    "category_id": int(category_ids[class_index]),
-                    "bbox": [x1, y1, max(0.0, x2 - x1), max(0.0, y2 - y1)],
-                    "score": float(score),
-                }
+    # Ultralytics treats a Python list as an in-memory source and may use the
+    # entire list as one batch, irrespective of the requested ``batch`` value.
+    # Explicit chunks keep low-confidence COCO export bounded in GPU memory.
+    batch_size = int(batch)
+    for offset in range(0, len(paths), batch_size):
+        chunk_images = images[offset : offset + batch_size]
+        chunk_paths = paths[offset : offset + batch_size]
+        results = yolo.predict(
+            source=chunk_paths,
+            stream=True,
+            imgsz=int(imgsz),
+            batch=len(chunk_paths),
+            device=device,
+            conf=float(conf),
+            iou=float(iou),
+            max_det=int(max_det),
+            verbose=False,
+        )
+        observed = 0
+        for image, result in zip(chunk_images, results):
+            observed += 1
+            boxes = getattr(result, "boxes", None)
+            if boxes is None or len(boxes) == 0:
+                continue
+            xyxy = boxes.xyxy.detach().cpu().tolist()
+            scores = boxes.conf.detach().cpu().tolist()
+            classes = boxes.cls.detach().cpu().tolist()
+            for coordinates, score, class_value in zip(xyxy, scores, classes):
+                x1, y1, x2, y2 = (float(value) for value in coordinates)
+                class_index = int(class_value)
+                if not 0 <= class_index < len(category_ids):
+                    raise ValueError(
+                        f"Predicted class {class_index} is outside {len(category_ids)} classes"
+                    )
+                predictions.append(
+                    {
+                        "image_id": int(image["id"]),
+                        "category_id": int(category_ids[class_index]),
+                        "bbox": [x1, y1, max(0.0, x2 - x1), max(0.0, y2 - y1)],
+                        "score": float(score),
+                    }
+                )
+        if observed != len(chunk_images):
+            raise RuntimeError(
+                f"Ultralytics returned {observed} results for {len(chunk_images)} evaluation images"
             )
     atomic_json_dump(predictions, output)
     return output
@@ -194,7 +212,7 @@ def main() -> int:
     predict.add_argument("--image-dir", type=Path, required=True)
     predict.add_argument("--output", type=Path, required=True)
     predict.add_argument("--imgsz", type=int, default=640)
-    predict.add_argument("--batch", type=int, default=8)
+    predict.add_argument("--batch", type=int, default=1)
     predict.add_argument("--device", default="0")
     predict.add_argument("--conf", type=float, default=0.001)
     predict.add_argument("--iou", type=float, default=0.7)

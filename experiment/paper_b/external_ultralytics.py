@@ -26,6 +26,7 @@ def main() -> int:
     parser.add_argument("--epochs", type=int, default=200)
     parser.add_argument("--imgsz", type=int, default=640)
     parser.add_argument("--batch", type=int, default=8)
+    parser.add_argument("--eval-batch", type=int, default=1)
     args = parser.parse_args()
 
     from ultralytics import YOLO, __version__
@@ -69,7 +70,7 @@ def main() -> int:
         coco_root / "test",
         args.output / "test_predictions.json",
         args.imgsz,
-        args.batch,
+        args.eval_batch,
         args.device,
         0.001,
         0.7,
@@ -92,6 +93,7 @@ def main() -> int:
         "weights": str(weights.resolve()),
         "weights_sha256": sha256_file(weights),
         "training_policy": "common_yolo_200e_sgd_coco_pretrained",
+        "evaluation_batch": args.eval_batch,
         "metrics": evaluation["metrics"],
         "unified_evaluation": evaluation,
         "complexity": {

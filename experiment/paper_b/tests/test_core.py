@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import numpy as np
@@ -13,7 +14,7 @@ import torch.nn.functional as F
 from algorithm.dwgsa import DWGSARouter
 from experiment.paper_b.corruptions import CORRUPTIONS, corrupt
 from experiment.paper_b.ablation import subset_coco_annotations
-from experiment.paper_b.coco_evaluator import evaluate_coco_predictions
+from experiment.paper_b.coco_evaluator import evaluate_coco_predictions, predict_yolo_to_coco
 from experiment.paper_b.frequency_interventions import haar_filters, intervene
 from experiment.paper_b.pilot import benchmark_path, diagnostics_path, evaluate_gate, result_path
 from experiment.paper_b.pretrained import remap_source_key, transfer_pretrained
@@ -78,6 +79,49 @@ class PaperBCoreTests(unittest.TestCase):
             predictions.write_text(json.dumps(prediction), encoding="utf-8")
             report = evaluate_coco_predictions(annotations, predictions)
         self.assertAlmostEqual(report["metrics"]["map50_95"], 1.0, places=6)
+
+    def test_yolo_prediction_export_explicitly_chunks_path_lists(self):
+        class Boxes:
+            def __init__(self):
+                self.xyxy = torch.tensor([[1.0, 2.0, 5.0, 8.0]])
+                self.conf = torch.tensor([0.9])
+                self.cls = torch.tensor([0.0])
+
+            def __len__(self):
+                return 1
+
+        class FakeYolo:
+            def __init__(self):
+                self.calls = []
+
+            def predict(self, source, **kwargs):
+                self.calls.append((list(source), kwargs["batch"]))
+                return iter(SimpleNamespace(boxes=Boxes()) for _ in source)
+
+        annotation = {
+            "images": [
+                {"id": value, "file_name": f"{value}.png", "width": 16, "height": 16}
+                for value in range(1, 6)
+            ],
+            "annotations": [],
+            "categories": [{"id": 7, "name": "defect"}],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            annotations = root / "annotations.json"
+            predictions = root / "predictions.json"
+            annotations.write_text(json.dumps(annotation), encoding="utf-8")
+            for image in annotation["images"]:
+                (root / image["file_name"]).write_bytes(b"fixture")
+            yolo = FakeYolo()
+            predict_yolo_to_coco(
+                yolo, annotations, root, predictions, 640, 2, "cpu", 0.001, 0.7, 300
+            )
+            payload = json.loads(predictions.read_text(encoding="utf-8"))
+        self.assertEqual([len(paths) for paths, _ in yolo.calls], [2, 2, 1])
+        self.assertEqual([batch for _, batch in yolo.calls], [2, 2, 1])
+        self.assertEqual([item["image_id"] for item in payload], [1, 2, 3, 4, 5])
+        self.assertEqual({item["category_id"] for item in payload}, {7})
 
     def test_smoke_coco_subset_never_adds_images(self):
         payload = {

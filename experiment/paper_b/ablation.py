@@ -380,7 +380,7 @@ def train_validation_only(
         coco_root / "val",
         run_dir / "val_predictions.json",
         int(train_args["imgsz"]),
-        int(train_args["batch"]),
+        int(protocol["evaluation"].get("batch", 1)),
         device,
         float(protocol["evaluation"]["conf"]),
         float(protocol["evaluation"]["iou"]),

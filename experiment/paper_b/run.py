@@ -464,7 +464,7 @@ def train_one(
         coco_root / "test",
         run_dir / "test_predictions.json",
         int(train_args["imgsz"]),
-        int(train_args["batch"]),
+        int(eval_config.get("batch", 1)),
         device,
         float(eval_config["conf"]),
         float(eval_config["iou"]),
