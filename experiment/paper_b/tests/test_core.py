@@ -13,7 +13,7 @@ import torch.nn.functional as F
 
 from algorithm.dwgsa import DWGSARouter
 from experiment.paper_b.corruptions import CORRUPTIONS, corrupt
-from experiment.paper_b.ablation import subset_coco_annotations
+from experiment.paper_b.ablation import subset_coco_annotations, validation_run_directory
 from experiment.paper_b.coco_evaluator import evaluate_coco_predictions, predict_yolo_to_coco
 from experiment.paper_b.external_detr import prediction_rows
 from experiment.paper_b.external_ultralytics import normalize_prediction_image_ids
@@ -345,5 +345,22 @@ class PaperBCoreTests(unittest.TestCase):
             path,
             Path("generated/runs/pilot/fixture/candidate/seed_13/ablation_result.json"),
         )
+
+    def test_ablation_results_are_isolated_by_protocol_revision(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            protocol_file = root / "paper_b.yaml"
+            protocol_file.write_text("protocol_version: 2\n", encoding="utf-8")
+            protocol = {
+                "_path": protocol_file,
+                "_output_root": root / "generated",
+                "ablation_track": {"dataset": "fixture"},
+            }
+            path = validation_run_directory(
+                protocol, "candidate", 13, False, "ablation"
+            )
+            self.assertEqual(path.parts[-5], "ablation")
+            self.assertEqual(path.parts[-2:], ("candidate", "seed_13"))
+            self.assertEqual(len(path.parts[-4]), 12)
 if __name__ == "__main__":
     unittest.main()

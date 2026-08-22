@@ -161,6 +161,31 @@ def subset_coco_annotations(source: Path, target: Path, maximum_images: int) -> 
     return target
 
 
+def validation_run_directory(
+    protocol: dict[str, Any],
+    variant_name: str,
+    seed: int,
+    smoke: bool,
+    budget_profile: str,
+) -> Path:
+    scope = "smoke" if smoke else "runs"
+    dataset_name = str(protocol["ablation_track"]["dataset"])
+    if budget_profile == "pilot":
+        track_parts = ("pilot", dataset_name)
+    elif budget_profile == "ablation":
+        revision = sha256_file(protocol["_path"])[:12]
+        track_parts = ("ablation", revision, dataset_name)
+    else:
+        raise ValueError(f"Unknown validation-only budget profile: {budget_profile}")
+    return (
+        protocol["_output_root"]
+        / scope
+        / Path(*track_parts)
+        / variant_name
+        / f"seed_{seed}"
+    )
+
+
 def train_validation_only(
     protocol: dict[str, Any],
     variant_name: str,
@@ -187,15 +212,8 @@ def train_validation_only(
     audit = json.loads(audit_path.read_text(encoding="utf-8"))
     if audit.get("fatal") or not audit.get("content_hashes_checked"):
         raise RuntimeError(f"Dataset audit is not valid for pilot selection: {audit_path}")
-    scope = "smoke" if smoke else "runs"
-    track_directory = "pilot" if budget_profile == "pilot" else "ablation"
-    run_dir = (
-        protocol["_output_root"]
-        / scope
-        / track_directory
-        / dataset_name
-        / variant_name
-        / f"seed_{seed}"
+    run_dir = validation_run_directory(
+        protocol, variant_name, seed, smoke, budget_profile
     )
     result_file = run_dir / "ablation_result.json"
     if result_file.exists() and not force:
