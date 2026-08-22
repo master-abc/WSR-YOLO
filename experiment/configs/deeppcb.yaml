@@ -5,7 +5,7 @@
 # 1500 images, 6 defect classes, 640x640
 # Classic PCB defect detection benchmark
 
-path: C:/Users/Administrator/Desktop/CDAM_YOLO__Context_Decoupled_Attention_for_High_Fidelity_PCB_Defect_Detection/DWGSA-YOLO/datasets/DeepPCB
+path: ../../datasets/DeepPCB
 train: images/train
 val: images/val
 test: images/test
