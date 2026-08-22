@@ -71,15 +71,31 @@ def run_official_evaluator(
     sys.path.insert(0, str(repository))
     if family == "deim":
         from engine.core import YAMLConfig
+        from engine.data import CocoEvaluator
         from engine.solver import TASKS
     else:
         from src.core import YAMLConfig
+        from src.data import CocoEvaluator
         from src.solver import TASKS
 
     cfg = YAMLConfig(str(config), resume=str(checkpoint), device=device, use_amp=True)
     solver = TASKS[cfg.yaml_cfg["task"]](cfg)
-    solver.val()
-    return solver
+    captured: list[dict[str, Any]] = []
+    original_update = CocoEvaluator.update
+
+    def capture_update(evaluator, predictions):
+        value = original_update(evaluator, predictions)
+        # Official evaluators replace cocoDt on every batch. Capture each batch
+        # immediately; reading cocoDt after val() would retain only the final one.
+        captured.extend(prediction_rows(evaluator))
+        return value
+
+    CocoEvaluator.update = capture_update
+    try:
+        solver.val()
+    finally:
+        CocoEvaluator.update = original_update
+    return solver, captured
 
 
 def main() -> int:
@@ -108,9 +124,11 @@ def main() -> int:
             raise FileNotFoundError(path)
     output.mkdir(parents=True, exist_ok=True)
 
-    solver = run_official_evaluator(args.family, repository, config, checkpoint, args.device)
+    solver, rows = run_official_evaluator(
+        args.family, repository, config, checkpoint, args.device
+    )
     predictions = output / "test_predictions.json"
-    atomic_json_dump(prediction_rows(solver.evaluator), predictions)
+    atomic_json_dump(rows, predictions)
     annotations = coco_root / "annotations" / "instances_test.json"
     evaluation = evaluate_coco_predictions(annotations, predictions, max_det=100)
     network = solver.ema.module if getattr(solver, "ema", None) is not None else solver.model
