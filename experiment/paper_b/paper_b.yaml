@@ -46,8 +46,8 @@ controlled_track:
       architecture: yolo11s.yaml
       pretrained: yolo11s.pt
       role: baseline
-    - name: wsr_yolo11s_p3
-      architecture: ../configs/wsr_yolo11s_p3.yaml
+    - name: wsr_yolo11s_p3_r25
+      architecture: ../configs/wsr_yolo11s_p3_r25.yaml
       pretrained: yolo11s.pt
       role: proposed
   train:
@@ -88,8 +88,8 @@ pilot_gate:
   seeds: [13, 42, 3407]
   baseline: yolo11s_val_baseline
   baseline_architecture: yolo11s.yaml
-  candidate: route_p3_12p5
-  formal_model: wsr_yolo11s_p3
+  candidate: route_p3_25
+  formal_model: wsr_yolo11s_p3_r25
   pretrained: yolo11s.pt
   validation_only: true
   mechanism_split: val

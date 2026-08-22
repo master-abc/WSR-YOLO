@@ -61,7 +61,7 @@ pilot 对 YOLO11s 验证集基线和 P3/12.5% 候选各运行种子 13、42、34
 ```powershell
 python -m experiment.paper_b.run plan
 python -m experiment.paper_b.run train --dataset dspcbsd_plus --model yolo11s --seed 13 --device 0
-python -m experiment.paper_b.run train --dataset dspcbsd_plus --model wsr_yolo11s_p3 --seed 13 --device 0
+python -m experiment.paper_b.run train --dataset dspcbsd_plus --model wsr_yolo11s_p3_r25 --seed 13 --device 0
 ```
 
 基线和本文方法使用七个配对种子：13、42、3407、4703、8391、9475、10501。七对使精确双侧 Wilcoxon 检验有可能达到 `p<0.05`；五对时理论最小 p 值为 0.0625。中断后可加 `--resume`，已存在标准结果时默认跳过。
@@ -95,7 +95,7 @@ python -m experiment.paper_b.corruptions experiment\paper_b\generated\datasets\d
 python -m experiment.paper_b.frequency_interventions experiment\paper_b\generated\datasets\deeppcb\dataset.yaml experiment\paper_b\generated\frequency\deeppcb
 
 # 用同一冻结权重评测上述目录
-python -m experiment.paper_b.evaluate_suite --weights PATH\best.pt --suite-root experiment\paper_b\generated\frequency\deeppcb --output frequency_result.json --model wsr_yolo11s_p3 --dataset deeppcb --seed 13
+python -m experiment.paper_b.evaluate_suite --weights PATH\best.pt --suite-root experiment\paper_b\generated\frequency\deeppcb --output frequency_result.json --model wsr_yolo11s_p3_r25 --dataset deeppcb --seed 13
 
 # 少样本曲线
 python -m experiment.paper_b.few_shot experiment\paper_b\generated\datasets\dspcbsd_plus\dataset.yaml experiment\paper_b\generated\few_shot\dspcbsd_plus
