@@ -15,6 +15,7 @@ from algorithm.dwgsa import DWGSARouter
 from experiment.paper_b.corruptions import CORRUPTIONS, corrupt
 from experiment.paper_b.ablation import subset_coco_annotations
 from experiment.paper_b.coco_evaluator import evaluate_coco_predictions, predict_yolo_to_coco
+from experiment.paper_b.external_detr import prediction_rows
 from experiment.paper_b.frequency_interventions import haar_filters, intervene
 from experiment.paper_b.pilot import benchmark_path, diagnostics_path, evaluate_gate, result_path
 from experiment.paper_b.pretrained import remap_source_key, transfer_pretrained
@@ -122,6 +123,31 @@ class PaperBCoreTests(unittest.TestCase):
         self.assertEqual([batch for _, batch in yolo.calls], [2, 2, 1])
         self.assertEqual([item["image_id"] for item in payload], [1, 2, 3, 4, 5])
         self.assertEqual({item["category_id"] for item in payload}, {7})
+
+    def test_detr_evaluator_predictions_are_normalized_to_coco_rows(self):
+        evaluator = SimpleNamespace(
+            coco_eval={
+                "bbox": SimpleNamespace(
+                    cocoDt=SimpleNamespace(
+                        dataset={
+                            "annotations": [
+                                {
+                                    "id": 99,
+                                    "image_id": np.int64(3),
+                                    "category_id": np.int64(7),
+                                    "bbox": [np.float32(1), np.float32(2), np.float32(4), np.float32(5)],
+                                    "score": np.float32(0.75),
+                                }
+                            ]
+                        }
+                    )
+                )
+            }
+        )
+        self.assertEqual(
+            prediction_rows(evaluator),
+            [{"image_id": 3, "category_id": 7, "bbox": [1.0, 2.0, 4.0, 5.0], "score": 0.75}],
+        )
 
     def test_smoke_coco_subset_never_adds_images(self):
         payload = {

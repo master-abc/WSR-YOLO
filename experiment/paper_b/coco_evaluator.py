@@ -169,6 +169,12 @@ def predict_yolo_to_coco(
         observed = 0
         for image, result in zip(chunk_images, results):
             observed += 1
+            if not hasattr(result, "boxes"):
+                raise TypeError(
+                    "Ultralytics prediction did not return a Results object. "
+                    "Load end-to-end models such as YOLOv10 with their dedicated "
+                    "model class instead of silently dropping every detection."
+                )
             boxes = getattr(result, "boxes", None)
             if boxes is None or len(boxes) == 0:
                 continue

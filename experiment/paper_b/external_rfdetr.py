@@ -52,6 +52,9 @@ def export_predictions(model, annotations: Path, image_dir: Path, output: Path, 
         ):
             x1, y1, x2, y2 = (float(value) for value in coordinates)
             class_index = int(class_id)
+            # rfdetr 输出头含第 N+1 个 no-object 通道,低阈值下会漏出,类别表外的一律丢弃
+            if class_index >= len(categories):
+                continue
             rows.append(
                 {
                     "image_id": int(image["id"]),
@@ -74,6 +77,16 @@ def main() -> int:
     parser.add_argument("--batch", type=int, default=2)
     parser.add_argument("--grad-accum", type=int, default=8)
     parser.add_argument("--device", default="cuda")
+    parser.add_argument(
+        "--pretrain-weights",
+        default=None,
+        help="本地 COCO 预训练权重路径;不提供时 rfdetr 会尝试联网下载(离线服务器必须显式给出)",
+    )
+    parser.add_argument(
+        "--skip-train",
+        action="store_true",
+        help="跳过训练,直接用 --output 目录下已有的 checkpoint_best_total.pth 执行导出评测",
+    )
     args = parser.parse_args()
 
     from importlib.metadata import version
@@ -89,20 +102,22 @@ def main() -> int:
     train_annotations = dataset_dir / "train" / "_annotations.coco.json"
     metadata = json.loads(train_annotations.read_text(encoding="utf-8"))
     num_classes = len(metadata["categories"])
-    model = RFDETRMedium(num_classes=num_classes, resolution=args.resolution)
-    model.train(
-        dataset_dir=str(dataset_dir),
-        output_dir=str(args.output),
-        epochs=args.epochs,
-        batch_size=args.batch,
-        grad_accum_steps=args.grad_accum,
-        lr=1e-4,
-        seed=args.seed,
-        device=args.device,
-        early_stopping=True,
-        early_stopping_patience=15,
-        run_test=False,
-    )
+    extra = {"pretrain_weights": args.pretrain_weights} if args.pretrain_weights else {}
+    if not args.skip_train:
+        model = RFDETRMedium(num_classes=num_classes, resolution=args.resolution, **extra)
+        model.train(
+            dataset_dir=str(dataset_dir),
+            output_dir=str(args.output),
+            epochs=args.epochs,
+            batch_size=args.batch,
+            grad_accum_steps=args.grad_accum,
+            lr=1e-4,
+            seed=args.seed,
+            device=args.device,
+            early_stopping=True,
+            early_stopping_patience=15,
+            run_test=False,
+        )
     checkpoint = args.output / "checkpoint_best_total.pth"
     if not checkpoint.exists():
         raise FileNotFoundError(checkpoint)
@@ -129,6 +144,8 @@ def main() -> int:
         "seed": args.seed,
         "checkpoint": str(checkpoint.resolve()),
         "checkpoint_sha256": sha256_file(checkpoint),
+        "weights_sha256": sha256_file(checkpoint),
+        "protocol_sha256": sha256_file(PAPER_B_DIR / "paper_b.yaml"),
         "training_policy": "official_rfdetr_finetune_recipe",
         "train_args": {
             "epochs": args.epochs,

@@ -5,6 +5,12 @@ models:
     package: ultralytics==8.4.50
     model: yolo26m.pt
     role: current_end_to_end_one_stage
+  yolo11_m:
+    family: ultralytics_native
+    venue: arXiv 2024
+    package: ultralytics==8.4.50
+    model: yolo11m.pt
+    role: m_scale_reference_one_stage
   rf_detr_m:
     family: rfdetr
     venue: ICLR 2026
@@ -43,6 +49,7 @@ models:
     pretrained_file: dfine_m_coco.pth
     pretrained_url: https://github.com/Peterande/storage/releases/download/dfinev1.0/dfine_m_coco.pth
     approximate_parameters_m: 19.0
+    train_total_batch_size: 8
     role: current_end_to_end
   deim_dfine_m:
     family: detr
@@ -54,6 +61,7 @@ models:
     pretrained_file: deim_dfine_m_coco.pth
     pretrained_gdrive_id: 18Lj2a6UN6k_n_UzqnJyiaiLGpDzQQit8
     approximate_parameters_m: 19.0
+    train_total_batch_size: 8
     role: data_efficient_end_to_end
   yolov12_m:
     family: ultralytics_fork

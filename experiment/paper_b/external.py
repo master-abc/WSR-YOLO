@@ -88,6 +88,9 @@ def detr_overlays(
             }
         },
     }
+    # 单卡 24GB 放不下官方多卡 total_batch_size 的模型,在注册表里显式降档
+    if model.get("train_total_batch_size"):
+        common["train_dataloader"]["total_batch_size"] = model["train_total_batch_size"]
     train_payload = {"__include__": [relative_original], **common}
     train_config = overlay_dir / f"{dataset}_{name}_seed{seed}_train.yml"
     train_config.write_text(yaml.safe_dump(train_payload, sort_keys=False), encoding="utf-8")
