@@ -126,7 +126,7 @@ ablation_track:
     - {name: route_p5_12p5, architecture: ../configs/wsr_yolo11s_p5.yaml}
     - {name: route_p3p4_12p5, architecture: ../configs/wsr_yolo11s_p3p4.yaml}
     - {name: route_p3_5, template: ../configs/wsr_yolo11s_p3.yaml, router_args: [256, 0.05, 0.25, true, true, true, true]}
-    - {name: route_p3_25, template: ../configs/wsr_yolo11s_p3.yaml, router_args: [256, 0.25, 0.25, true, true, true, true]}
+    - {name: route_p3_25, architecture: ../configs/wsr_yolo11s_p3_r25.yaml}
     - {name: route_p3_100, template: ../configs/wsr_yolo11s_p3.yaml, router_args: [256, 1.0, 0.25, true, true, true, true]}
     - {name: route_p3_no_hf, template: ../configs/wsr_yolo11s_p3.yaml, router_args: [256, 0.125, 0.25, false, true, true, true]}
     - {name: route_p3_no_ll, template: ../configs/wsr_yolo11s_p3.yaml, router_args: [256, 0.125, 0.25, true, false, true, true]}
