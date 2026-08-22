@@ -152,12 +152,16 @@ class PaperBCoreTests(unittest.TestCase):
 
     def test_validator_filename_ids_map_to_locked_coco_ids(self):
         annotations = {
-            "images": [{"id": 17, "file_name": "board_001.jpg"}],
+            "images": [
+                {"id": 17, "file_name": "board_001.jpg"},
+                {"id": 18, "file_name": "00000018_original_board.jpg"},
+            ],
             "annotations": [],
             "categories": [{"id": 0, "name": "defect"}],
         }
         predictions = [
-            {"image_id": "board_001", "category_id": 0, "bbox": [1, 2, 3, 4], "score": 0.5}
+            {"image_id": "board_001", "category_id": 0, "bbox": [1, 2, 3, 4], "score": 0.5},
+            {"image_id": "original_board", "category_id": 0, "bbox": [2, 3, 4, 5], "score": 0.6},
         ]
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -169,6 +173,7 @@ class PaperBCoreTests(unittest.TestCase):
             observed = json.loads(prediction_path.read_text(encoding="utf-8"))
         self.assertTrue(changed)
         self.assertEqual(observed[0]["image_id"], 17)
+        self.assertEqual(observed[1]["image_id"], 18)
 
     def test_smoke_coco_subset_never_adds_images(self):
         payload = {

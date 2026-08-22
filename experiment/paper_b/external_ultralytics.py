@@ -34,14 +34,31 @@ def normalize_prediction_image_ids(annotations: Path, predictions: Path) -> bool
     rows = json.loads(predictions.read_text(encoding="utf-8"))
     valid_ids = {int(image["id"]) for image in ground_truth["images"]}
     by_name = {str(image["file_name"]): int(image["id"]) for image in ground_truth["images"]}
-    by_stem = {Path(image["file_name"]).stem: int(image["id"]) for image in ground_truth["images"]}
+    aliases: dict[str, int] = {}
+    ambiguous: set[str] = set()
+    for image in ground_truth["images"]:
+        stem = Path(image["file_name"]).stem
+        candidates = [stem]
+        # COCO conversion prefixes the integer image ID to avoid basename
+        # collisions. Some official validators instead emit the original stem.
+        prefix, separator, original_stem = stem.partition("_")
+        if separator and prefix.isdigit():
+            candidates.append(original_stem)
+        for candidate in candidates:
+            image_id = int(image["id"])
+            if candidate in aliases and aliases[candidate] != image_id:
+                ambiguous.add(candidate)
+            else:
+                aliases[candidate] = image_id
+    for candidate in ambiguous:
+        aliases.pop(candidate, None)
     changed = False
     for row in rows:
         image_id = row.get("image_id")
         if isinstance(image_id, int) and image_id in valid_ids:
             continue
         key = str(image_id)
-        mapped = by_name.get(key, by_stem.get(Path(key).stem))
+        mapped = by_name.get(key, aliases.get(Path(key).stem))
         if mapped is None:
             raise ValueError(f"Prediction image_id does not match the locked COCO set: {image_id}")
         row["image_id"] = mapped
