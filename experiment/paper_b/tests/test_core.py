@@ -16,6 +16,7 @@ from experiment.paper_b.corruptions import CORRUPTIONS, corrupt
 from experiment.paper_b.ablation import subset_coco_annotations
 from experiment.paper_b.coco_evaluator import evaluate_coco_predictions, predict_yolo_to_coco
 from experiment.paper_b.external_detr import prediction_rows
+from experiment.paper_b.external_ultralytics import normalize_prediction_image_ids
 from experiment.paper_b.frequency_interventions import haar_filters, intervene
 from experiment.paper_b.pilot import benchmark_path, diagnostics_path, evaluate_gate, result_path
 from experiment.paper_b.pretrained import remap_source_key, transfer_pretrained
@@ -148,6 +149,26 @@ class PaperBCoreTests(unittest.TestCase):
             prediction_rows(evaluator),
             [{"image_id": 3, "category_id": 7, "bbox": [1.0, 2.0, 4.0, 5.0], "score": 0.75}],
         )
+
+    def test_validator_filename_ids_map_to_locked_coco_ids(self):
+        annotations = {
+            "images": [{"id": 17, "file_name": "board_001.jpg"}],
+            "annotations": [],
+            "categories": [{"id": 0, "name": "defect"}],
+        }
+        predictions = [
+            {"image_id": "board_001", "category_id": 0, "bbox": [1, 2, 3, 4], "score": 0.5}
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            annotation_path = root / "annotations.json"
+            prediction_path = root / "predictions.json"
+            annotation_path.write_text(json.dumps(annotations), encoding="utf-8")
+            prediction_path.write_text(json.dumps(predictions), encoding="utf-8")
+            changed = normalize_prediction_image_ids(annotation_path, prediction_path)
+            observed = json.loads(prediction_path.read_text(encoding="utf-8"))
+        self.assertTrue(changed)
+        self.assertEqual(observed[0]["image_id"], 17)
 
     def test_smoke_coco_subset_never_adds_images(self):
         payload = {

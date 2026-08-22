@@ -27,6 +27,30 @@ def load_yolo(model_path: str | Path, model_name: str):
     return YOLO(str(model_path))
 
 
+def normalize_prediction_image_ids(annotations: Path, predictions: Path) -> bool:
+    """Map validator filename IDs back to the integer IDs in the locked COCO file."""
+
+    ground_truth = json.loads(annotations.read_text(encoding="utf-8"))
+    rows = json.loads(predictions.read_text(encoding="utf-8"))
+    valid_ids = {int(image["id"]) for image in ground_truth["images"]}
+    by_name = {str(image["file_name"]): int(image["id"]) for image in ground_truth["images"]}
+    by_stem = {Path(image["file_name"]).stem: int(image["id"]) for image in ground_truth["images"]}
+    changed = False
+    for row in rows:
+        image_id = row.get("image_id")
+        if isinstance(image_id, int) and image_id in valid_ids:
+            continue
+        key = str(image_id)
+        mapped = by_name.get(key, by_stem.get(Path(key).stem))
+        if mapped is None:
+            raise ValueError(f"Prediction image_id does not match the locked COCO set: {image_id}")
+        row["image_id"] = mapped
+        changed = True
+    if changed:
+        atomic_json_dump(rows, predictions)
+    return changed
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Official-fork adapter for YOLOv10/YOLOv12")
     parser.add_argument("--model", required=True)
@@ -103,6 +127,8 @@ def main() -> int:
             0.7,
             300,
         )
+    else:
+        normalize_prediction_image_ids(annotations, predictions)
     evaluation = evaluate_coco_predictions(annotations, predictions, 100)
     try:
         from ultralytics.utils.torch_utils import get_flops
