@@ -329,5 +329,21 @@ class PaperBCoreTests(unittest.TestCase):
             self.assertEqual(decision["status"], "PASS")
             self.assertFalse(decision["test_evaluated"])
             self.assertAlmostEqual(decision["measurements"]["mean_map50_95_gain"], 0.015)
+
+    def test_pilot_results_are_isolated_from_ablation_results(self):
+        protocol = {
+            "_output_root": Path("generated"),
+            "pilot_gate": {
+                "dataset": "fixture",
+                "validation_only": True,
+                "mechanism_split": "val",
+                "latency_split": "val",
+            },
+        }
+        path = result_path(protocol, "candidate", 13)
+        self.assertEqual(
+            path,
+            Path("generated/runs/pilot/fixture/candidate/seed_13/ablation_result.json"),
+        )
 if __name__ == "__main__":
     unittest.main()

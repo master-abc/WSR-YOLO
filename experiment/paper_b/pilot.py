@@ -43,7 +43,7 @@ def run_directory(protocol: dict[str, Any], model: str, seed: int, smoke: bool =
     return (
         protocol["_output_root"]
         / scope
-        / "ablation"
+        / "pilot"
         / str(config["dataset"])
         / model
         / f"seed_{seed}"

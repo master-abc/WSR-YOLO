@@ -188,7 +188,15 @@ def train_validation_only(
     if audit.get("fatal") or not audit.get("content_hashes_checked"):
         raise RuntimeError(f"Dataset audit is not valid for pilot selection: {audit_path}")
     scope = "smoke" if smoke else "runs"
-    run_dir = protocol["_output_root"] / scope / "ablation" / dataset_name / variant_name / f"seed_{seed}"
+    track_directory = "pilot" if budget_profile == "pilot" else "ablation"
+    run_dir = (
+        protocol["_output_root"]
+        / scope
+        / track_directory
+        / dataset_name
+        / variant_name
+        / f"seed_{seed}"
+    )
     result_file = run_dir / "ablation_result.json"
     if result_file.exists() and not force:
         existing = json.loads(result_file.read_text(encoding="utf-8"))
