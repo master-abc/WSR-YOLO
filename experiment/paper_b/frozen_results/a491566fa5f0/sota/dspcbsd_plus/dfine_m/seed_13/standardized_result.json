@@ -1,0 +1,93 @@
+{
+  "checkpoint": "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/sota/dspcbsd_plus/dfine_m/seed_13/best_stg2.pth",
+  "checkpoint_sha256": "007bb4ad70c3b891d1c562b7369a4cf46db4869770518523428836304f0f7e73",
+  "complexity": {
+    "parameters": 19480653
+  },
+  "dataset": "dspcbsd_plus",
+  "environment": {
+    "external_commit": "267a6da6d04c8ad52e54120692896515b9e55981",
+    "external_repository": "/data/zjq/paperb_external_repos/dfine_m",
+    "git_commit": "e80222bf9eb10b4b74d7a953ccac602cf7320650",
+    "git_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "git_dirty": false,
+    "git_status": [],
+    "hostname": "3090",
+    "numpy": "2.2.6",
+    "nvidia_smi": "NVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB",
+    "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+    "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 16:42:22) [GCC 14.3.0]",
+    "scipy": "1.15.3",
+    "torch": "2.5.1+cu124",
+    "torchvision": "0.20.1+cu124",
+    "ultralytics": null
+  },
+  "metrics": {
+    "ap_large": 0.7592717273747135,
+    "ap_medium": 0.6052858173974093,
+    "ap_small": 0.4522546267975016,
+    "ar_1": 0.42888705737682437,
+    "ar_10": 0.6598587727267476,
+    "ar_100": 0.7095326444026574,
+    "ar_large": 0.9108587533156498,
+    "ar_medium": 0.8049490559669252,
+    "ar_small": 0.6554253849980518,
+    "map50": 0.8664141889316297,
+    "map50_95": 0.5301827932488294,
+    "map75": 0.5628112945697332,
+    "per_class_ap50_95": {
+      "base_material_foreign_object": 0.48074279898811145,
+      "conductor_foreign_object": 0.4661457165820578,
+      "conductor_scratch": 0.5098345942291188,
+      "hole_breakout": 0.8258243860474573,
+      "mouse_bite": 0.4092672781344814,
+      "open": 0.5494896430685797,
+      "short": 0.6034828838784316,
+      "spur": 0.4016945891086037,
+      "spurious_copper": 0.5251632492026228
+    }
+  },
+  "model": "dfine_m",
+  "protocol_sha256": "a491566fa5f061881de7277e926cdafa3470f918f8ddb28dad5a5704d703dc56",
+  "schema_version": 2,
+  "seed": 13,
+  "track": "sota",
+  "training_policy": "official_family_specific_finetune_recipe",
+  "unified_evaluation": {
+    "annotations": "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/coco/dspcbsd_plus/annotations/instances_test.json",
+    "annotations_sha256": "731a0fb2b7a30d5dad4eba06f81a1b1e4e04b5a04a505d28c3fa6a7d08f35ef5",
+    "evaluator": "pycocotools.COCOeval",
+    "image_count": 2051,
+    "max_det": 100,
+    "metrics": {
+      "ap_large": 0.7592717273747135,
+      "ap_medium": 0.6052858173974093,
+      "ap_small": 0.4522546267975016,
+      "ar_1": 0.42888705737682437,
+      "ar_10": 0.6598587727267476,
+      "ar_100": 0.7095326444026574,
+      "ar_large": 0.9108587533156498,
+      "ar_medium": 0.8049490559669252,
+      "ar_small": 0.6554253849980518,
+      "map50": 0.8664141889316297,
+      "map50_95": 0.5301827932488294,
+      "map75": 0.5628112945697332,
+      "per_class_ap50_95": {
+        "base_material_foreign_object": 0.48074279898811145,
+        "conductor_foreign_object": 0.4661457165820578,
+        "conductor_scratch": 0.5098345942291188,
+        "hole_breakout": 0.8258243860474573,
+        "mouse_bite": 0.4092672781344814,
+        "open": 0.5494896430685797,
+        "short": 0.6034828838784316,
+        "spur": 0.4016945891086037,
+        "spurious_copper": 0.5251632492026228
+      }
+    },
+    "prediction_count": 615300,
+    "predictions": "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/sota/dspcbsd_plus/dfine_m/seed_13/test_predictions.json",
+    "predictions_sha256": "fb7e768c9e5d0025fd00a9b00bba847265efa5d68da1d5806b9c2d58c2dbcd0c",
+    "pycocotools": "1.7.2"
+  },
+  "weights_sha256": "007bb4ad70c3b891d1c562b7369a4cf46db4869770518523428836304f0f7e73"
+}
