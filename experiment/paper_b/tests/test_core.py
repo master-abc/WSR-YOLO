@@ -249,6 +249,16 @@ class PaperBCoreTests(unittest.TestCase):
         module(value * 3.0)
         self.assertTrue(torch.equal(first_mask, module.last_route_mask))
 
+    def test_stable_wsr_accepts_asymmetric_residual_initialization(self):
+        module = WSRStable(
+            64,
+            route_ratio=0.125,
+            residual_init=0.35,
+            sparse_residual_init=0.10,
+        )
+        expected = torch.tensor([0.35, 0.10], dtype=module.residual_scale.dtype)
+        self.assertTrue(torch.equal(module.residual_scale.detach(), expected))
+
     def test_counterfactuals_and_corruptions_preserve_shape(self):
         image = np.random.default_rng(7).integers(0, 256, (33, 35, 3), dtype=np.uint8)
         for mode in ("low_only", "high_only", "remove_lh", "remove_hl", "remove_hh"):

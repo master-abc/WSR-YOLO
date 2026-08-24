@@ -1,0 +1,163 @@
+{
+  "baseline": "yolo11s_val_baseline",
+  "baseline_mean_map50_95": 0.3267887000132046,
+  "baseline_model_only_mean_ms": 10.693630019086413,
+  "baseline_values": [
+    0.3293944242149763,
+    0.32549121326463715,
+    0.3254804625600003
+  ],
+  "candidates": [
+    {
+      "architecture_definition_sha256": "3346373add88c371b3213d6ae99db2b2a9b82155d87c52885380b6642fc9a88e",
+      "candidate": "stable_p4_12p5_s10",
+      "checks": {
+        "accuracy": false,
+        "latency": true,
+        "mechanism": true
+      },
+      "latency_ratio": 1.1990984594213914,
+      "mean_map50_95": 0.33038160001625255,
+      "mean_map50_95_gain": 0.0035929000030479608,
+      "mean_route_enrichment": 3.4972035104800594,
+      "model_only_mean_ms": 12.822715281508863,
+      "pass": false,
+      "values": [
+        0.3244959938390617,
+        0.3286888855586967,
+        0.3379599206509992
+      ]
+    },
+    {
+      "architecture_definition_sha256": "73fc4c8a848247535632122688bae02c7cb79f75b01c9918d9b81ad98a49b7a7",
+      "candidate": "stable_p4_25_s10",
+      "checks": {
+        "accuracy": false,
+        "latency": true,
+        "mechanism": true
+      },
+      "latency_ratio": 1.1525635879647487,
+      "mean_map50_95": 0.32944322701749257,
+      "mean_map50_95_gain": 0.0026545270042879765,
+      "mean_route_enrichment": 2.844325556958698,
+      "model_only_mean_ms": 12.32508858316578,
+      "pass": false,
+      "values": [
+        0.3365516200219459,
+        0.3190444063860661,
+        0.3327336546444658
+      ]
+    },
+    {
+      "architecture_definition_sha256": "515f1684f72ac66204bc3793e07b57c8a3fd7d9808bbefb37077fc4162e2f338",
+      "candidate": "stable_p4_12p5_s20",
+      "checks": {
+        "accuracy": false,
+        "latency": true,
+        "mechanism": true
+      },
+      "latency_ratio": 1.1531026441721752,
+      "mean_map50_95": 0.33331068003094105,
+      "mean_map50_95_gain": 0.006521980017736462,
+      "mean_route_enrichment": 3.070646890963644,
+      "model_only_mean_ms": 12.330853050807491,
+      "pass": false,
+      "values": [
+        0.33979884929251797,
+        0.33688408712790685,
+        0.32324910367239834
+      ]
+    },
+    {
+      "architecture_definition_sha256": "0a73429ce6266d9adac6cc0cd838e36342f6e9cb5c6478aaca78c49a41d0ab36",
+      "candidate": "stable_p4_25_s20",
+      "checks": {
+        "accuracy": false,
+        "latency": true,
+        "mechanism": true
+      },
+      "latency_ratio": 1.1954476775677507,
+      "mean_map50_95": 0.32690010062114916,
+      "mean_map50_95_gain": 0.0001114006079445673,
+      "mean_route_enrichment": 2.7732017380051315,
+      "model_only_mean_ms": 12.783675171085633,
+      "pass": false,
+      "values": [
+        0.3212285768999326,
+        0.3296049010731417,
+        0.32986682389037314
+      ]
+    }
+  ],
+  "dataset": "dspcbsd_plus",
+  "environment": {
+    "git_commit": "963bd087f924c5d1d5054678f972258c81072688",
+    "git_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "git_dirty": false,
+    "git_status": [],
+    "hostname": "3090",
+    "numpy": "1.26.4",
+    "nvidia_smi": "NVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB",
+    "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+    "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 16:42:22) [GCC 14.3.0]",
+    "scipy": "1.14.1",
+    "torch": "2.5.1+cu121",
+    "torchvision": "0.20.1+cu121",
+    "ultralytics": "8.4.50"
+  },
+  "git_commits": [
+    "963bd087f924c5d1d5054678f972258c81072688"
+  ],
+  "optimization_round": "stable_p4_factorial_v2",
+  "protocol_sha256": "a13dcd5d8646a45478ea0875b3490f4c55291716c54d44b058e21778700df02b",
+  "result_sha256": {
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_12p5_s10/seed_13/ablation_result.json": "177623607c185c04e6301b6899d4d45040d6e2526bdfe59f156c40d1c9584de7",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_12p5_s10/seed_13/latency_val_fp32.json": "3839c0197f14b2ad6b1b86b1bc18c5dc1b74a60d1110ee685590b717c5303e56",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_12p5_s10/seed_13/route_diagnostics_val.json": "ace508430733a2d19ac64eace1de940ad3388c328b542d6aa3fb6fbfc572c069",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_12p5_s10/seed_3407/ablation_result.json": "359b40515bc5fa30b41b565bf96ac3efef8500af98181b3dd60dd9e1c7da7198",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_12p5_s10/seed_3407/route_diagnostics_val.json": "60ef840738e4ea2c32bbe7f04d4914b959d09b709f219559a17c51187eaf0468",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_12p5_s10/seed_42/ablation_result.json": "c454b426f96d6bdaddb6c6484ff7fdde44c7402bd0018b405acbcaa346abb8b9",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_12p5_s10/seed_42/route_diagnostics_val.json": "d4cfa0e9c2e6ef80c102618d68b2cc547941203d04ad833fe8d91f20ce995b2e",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_12p5_s20/seed_13/ablation_result.json": "869b2ee38b68a4c5ba93016624d4d0c407cda7e8bc009b24c4c3e6d774cd2ead",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_12p5_s20/seed_13/latency_val_fp32.json": "79756b175ae60e624d08b6031e7fd5b8a9694b69f891d9be482a2a0702ea5742",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_12p5_s20/seed_13/route_diagnostics_val.json": "226700b5213b1385a37425e47b0ab4d36d095d76b36b2d4a8fcce51fe112456c",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_12p5_s20/seed_3407/ablation_result.json": "b61cba09f0fd15cf43206d5ca3fb2313018cef9830fd275b02f5f213c8fc8914",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_12p5_s20/seed_3407/route_diagnostics_val.json": "e842468fd5a32e7d29e86860fe74c7a35187767fc64cc1f2a9364efeca8360d6",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_12p5_s20/seed_42/ablation_result.json": "3f1ba984d60ba12ace32d973e96a2c214f070772c3014814496840765b5c1122",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_12p5_s20/seed_42/route_diagnostics_val.json": "4d91388485b04f528582c9608776255a90855c5ed9c55b7cfa45b4cfa6f2c664",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_25_s10/seed_13/ablation_result.json": "45e4bdbe91d51a1aafcb67bdb007ab6bd96b82f4a898e6d5dcc17ad972391ca1",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_25_s10/seed_13/latency_val_fp32.json": "d1ee4c8bb2f7e59efa7f963264525ecd4017852c65e1db5c851f0d7232b5a7c7",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_25_s10/seed_13/route_diagnostics_val.json": "b6c2bed6784771728d139b0b0f3b9676b10351dec1aa478480b990dc7e3b772d",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_25_s10/seed_3407/ablation_result.json": "7c58ff33290fb9957c93045ca07f35ecbc4e0620aa0197519a068886225d76ae",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_25_s10/seed_3407/route_diagnostics_val.json": "e1efadd2111b37d5dba1706d9e68adae36e50a832f274dcc487247d68d6dc2b9",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_25_s10/seed_42/ablation_result.json": "96a0933dac5b730dae74bfe011626f94c06759ddf711312c2580162c3f051fba",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_25_s10/seed_42/route_diagnostics_val.json": "2cd8da65fe730042f9e124bad0d9eb936f96ac447544556858e3ed843373e81d",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_25_s20/seed_13/ablation_result.json": "adf652894f78261bd056cdf3daa76d7cb631fa05e242162528ddc1be47902047",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_25_s20/seed_13/latency_val_fp32.json": "78e8196cb4d6d5d7d2ab67ce22db7ddfca93905c14c8e753c3b78561e4b727a9",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_25_s20/seed_13/route_diagnostics_val.json": "228f49a3fdcbc73d08d977431f14d63780ee27202b502d23f362edb93b2d82b0",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_25_s20/seed_3407/ablation_result.json": "d95bd371b1274a8d3a723907a934eb5118f1f6e7e683dc00f26ffcf3cab11973",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_25_s20/seed_3407/route_diagnostics_val.json": "7d931687ed00ce7774fcc6dfbecd3068ddcda6a3e2e448c5f3266efba19d801a",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_25_s20/seed_42/ablation_result.json": "3292275680674bdca1a38eaba64e8776b512aa49c15579a673271d762caf8f63",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/stable_p4_25_s20/seed_42/route_diagnostics_val.json": "4f4b3ff76d349fd61e5630c4986d38a9bcaa38c70af049cc27763e78aae3bfb7",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/yolo11s_val_baseline/seed_13/ablation_result.json": "a84dcce8aeea837c3a7db0fca5956b92758ddba5dcc00fdfabcd10b3d8eba560",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/yolo11s_val_baseline/seed_13/latency_val_fp32.json": "ec40dafcd6e04798bafc0a673ee1d9697b739ee6b294e6e3985617e9ad5a280d",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/yolo11s_val_baseline/seed_3407/ablation_result.json": "ac49903a080761d20364fb0ad78be9fb922ab41ed4e67de597489f2a6abd209f",
+    "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/runs/ablation/a13dcd5d8646/dspcbsd_plus/yolo11s_val_baseline/seed_42/ablation_result.json": "0aa0da6d77616ab9f301c4c683654d04ee5584d7104c98fb96f09e237749690e"
+  },
+  "schema_version": 1,
+  "seeds": [
+    13,
+    42,
+    3407
+  ],
+  "selected_architecture_definition_sha256": null,
+  "selected_candidate": null,
+  "selection_split": "val",
+  "status": "FAIL",
+  "test_evaluated": false,
+  "thresholds": {
+    "maximum_latency_ratio": 1.2,
+    "minimum_mean_ap50_95_gain": 0.01,
+    "minimum_route_enrichment": 2.0
+  }
+}

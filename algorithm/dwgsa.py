@@ -655,6 +655,7 @@ class WSRStable(DWGSARouter):
         adaptive_fusion=True,
         learned_router=True,
         residual_init=0.1,
+        sparse_residual_init=None,
     ):
         super().__init__(
             channels,
@@ -677,8 +678,16 @@ class WSRStable(DWGSARouter):
             nn.Linear(fusion_hidden, 2),
             nn.Softmax(dim=1),
         )
+        wave_residual_init = float(residual_init)
+        sparse_residual_init = (
+            wave_residual_init
+            if sparse_residual_init is None
+            else float(sparse_residual_init)
+        )
         self.residual_scale = nn.Parameter(
-            torch.full((2,), float(residual_init), dtype=torch.float32)
+            torch.tensor(
+                [wave_residual_init, sparse_residual_init], dtype=torch.float32
+            )
         )
 
     def forward(self, x):

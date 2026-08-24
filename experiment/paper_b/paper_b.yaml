@@ -1,4 +1,4 @@
-protocol_version: 4
+protocol_version: 5
 split_seed: 2026
 output_root: generated
 
@@ -110,16 +110,19 @@ pilot_gate:
     patience: 10
     plots: false
 
-# Second validation-only engineering round, declared after stable_residual_v1
-# failed its pre-registered latency gate and before any P4-only run. The 2x2
-# design varies route coverage and residual strength at the compute-efficient
-# P4 stage. The locked test split remains unavailable to selection.
+# Third and final validation-only engineering round, declared after the P4
+# factorial passed mechanism/latency but failed accuracy. Checkpoint inspection
+# showed that P3 wave scales grew from 0.10 to 0.29--0.56 while sparse scales
+# stayed near 0.10. This pre-registered 2x2 design therefore varies P3 route
+# coverage and wave-only initialization while holding sparse strength at 0.10.
+# The locked test split remains unavailable to selection.
 optimization_round:
-  name: stable_p4_factorial_v2
+  name: stable_p3_asymmetric_v3
+  final_engineering_round: true
   dataset: dspcbsd_plus
   seeds: [13, 42, 3407]
   baseline: yolo11s_val_baseline
-  candidates: [stable_p4_12p5_s10, stable_p4_25_s10, stable_p4_12p5_s20, stable_p4_25_s20]
+  candidates: [stable_p3_r12p5_w35_s10, stable_p3_r25_w35_s10, stable_p3_r12p5_w45_s10, stable_p3_r25_w45_s10]
   selection_split: val
   test_evaluated: false
   minimum_mean_ap50_95_gain: 0.01
@@ -138,6 +141,10 @@ ablation_track:
     patience: 10
     plots: false
   models:
+    - {name: stable_p3_r12p5_w35_s10, template: ../configs/wsr_stable_yolo11s_p3_r12p5.yaml, router_args: [256, 0.125, 0.25, true, true, true, true, 0.35, 0.10]}
+    - {name: stable_p3_r25_w35_s10, template: ../configs/wsr_stable_yolo11s_p3_r12p5.yaml, router_args: [256, 0.25, 0.25, true, true, true, true, 0.35, 0.10]}
+    - {name: stable_p3_r12p5_w45_s10, template: ../configs/wsr_stable_yolo11s_p3_r12p5.yaml, router_args: [256, 0.125, 0.25, true, true, true, true, 0.45, 0.10]}
+    - {name: stable_p3_r25_w45_s10, template: ../configs/wsr_stable_yolo11s_p3_r12p5.yaml, router_args: [256, 0.25, 0.25, true, true, true, true, 0.45, 0.10]}
     - {name: stable_p4_12p5_s10, architecture: ../configs/wsr_stable_yolo11s_p4_r12p5_s10.yaml}
     - {name: stable_p4_25_s10, architecture: ../configs/wsr_stable_yolo11s_p4_r25_s10.yaml}
     - {name: stable_p4_12p5_s20, architecture: ../configs/wsr_stable_yolo11s_p4_r12p5_s20.yaml}
