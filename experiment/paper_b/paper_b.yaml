@@ -1,4 +1,4 @@
-protocol_version: 3
+protocol_version: 4
 split_seed: 2026
 output_root: generated
 
@@ -110,16 +110,16 @@ pilot_gate:
     patience: 10
     plots: false
 
-# Validation-only engineering round declared before any stable-WSR run.  The
-# locked test split remains unavailable to this selection step.  A candidate
-# may replace the formal model only when it passes every threshold; ties are
-# resolved by validation AP, then same-GPU latency, then the lower route ratio.
+# Second validation-only engineering round, declared after stable_residual_v1
+# failed its pre-registered latency gate and before any P4-only run. The 2x2
+# design varies route coverage and residual strength at the compute-efficient
+# P4 stage. The locked test split remains unavailable to selection.
 optimization_round:
-  name: stable_residual_v1
+  name: stable_p4_factorial_v2
   dataset: dspcbsd_plus
   seeds: [13, 42, 3407]
   baseline: yolo11s_val_baseline
-  candidates: [stable_p3_12p5, stable_p3_25, stable_p3p4_12p5]
+  candidates: [stable_p4_12p5_s10, stable_p4_25_s10, stable_p4_12p5_s20, stable_p4_25_s20]
   selection_split: val
   test_evaluated: false
   minimum_mean_ap50_95_gain: 0.01
@@ -138,6 +138,10 @@ ablation_track:
     patience: 10
     plots: false
   models:
+    - {name: stable_p4_12p5_s10, architecture: ../configs/wsr_stable_yolo11s_p4_r12p5_s10.yaml}
+    - {name: stable_p4_25_s10, architecture: ../configs/wsr_stable_yolo11s_p4_r25_s10.yaml}
+    - {name: stable_p4_12p5_s20, architecture: ../configs/wsr_stable_yolo11s_p4_r12p5_s20.yaml}
+    - {name: stable_p4_25_s20, architecture: ../configs/wsr_stable_yolo11s_p4_r25_s20.yaml}
     - {name: stable_p3_12p5, architecture: ../configs/wsr_stable_yolo11s_p3_r12p5.yaml}
     - {name: stable_p3_25, architecture: ../configs/wsr_stable_yolo11s_p3_r25.yaml}
     - {name: stable_p3p4_12p5, architecture: ../configs/wsr_stable_yolo11s_p3p4_r12p5.yaml}
