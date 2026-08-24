@@ -7,6 +7,13 @@
 \newcommand{\method}{WSR-YOLO}
 \newcommand{\module}{WSR}
 \providecommand{\ProjectRoot}{}
+\newcommand{\figureplaceholder}[2][1.35in]{%
+  \begingroup
+  \setlength{\fboxsep}{0pt}%
+  \fbox{\parbox[c][#1][c]{\dimexpr\linewidth-2\fboxrule\relax}{%
+    \centering\textbf{FIGURE PLACEHOLDER}\\[0.5em]\small #2}}%
+  \endgroup
+}
 
 \begin{document}
 
@@ -47,7 +54,14 @@ WaveCNet~\cite{wavecnet} uses wavelets to reduce aliasing, FcaNet~\cite{fcanet} 
 
 \section{Method}
 \subsection{Overview}
-Let $\mathbf{X}\in\mathbb{R}^{C\times H\times W}$ be the P3/8 feature. We split it directly into wave and refinement tensors, $\mathbf{X}_w$ and $\mathbf{X}_r$, each with $C/2$ channels. The wave path supplies gated high-frequency enhancement. The routing path selects a fixed fraction of spatial tokens for channel refinement. Their weighted concatenation is added residually to $\mathbf{X}$. Direct splitting avoids dense $C\times C$ projections at P3 that would otherwise dominate the sparse operator's cost. Unlike the legacy P5 soft-mask design, WSR is inserted after the P3 backbone block while the original P5 C2PSA remains unchanged.
+Let $\mathbf{X}\in\mathbb{R}^{C\times H\times W}$ be the P3/8 feature. We split it directly into wave and refinement tensors, $\mathbf{X}_w$ and $\mathbf{X}_r$, each with $C/2$ channels. The wave path supplies gated high-frequency enhancement. The routing path selects a fixed fraction of spatial tokens for channel refinement. Their weighted concatenation is added residually to $\mathbf{X}$. Direct splitting avoids dense $C\times C$ projections at P3 that would otherwise dominate the sparse operator's cost. Unlike the legacy P5 soft-mask design, WSR is inserted after the P3 backbone block while the original P5 C2PSA remains unchanged. Figure~\ref{fig:architecture} summarizes this placement.
+
+\begin{figure*}[t]
+\centering
+\figureplaceholder[1.85in]{Overall WSR-YOLO architecture: YOLO11s backbone and neck, the P3/8 insertion point, wave and sparse branches, and the unchanged P4/P5 detection path.}
+\caption{Overall architecture of WSR-YOLO. The final figure should highlight the high-resolution P3/8 insertion and distinguish the dense routing cues from the budgeted token refinement.}
+\label{fig:architecture}
+\end{figure*}
 
 \subsection{Haar-Conditioned Router}
 Grouped stride-two convolution with fixed Haar filters decomposes $\mathbf{X}_w$ into
@@ -78,7 +92,14 @@ Nine learned directional weights $\bm{a}$ define a shared depthwise $3\times3$ c
  \sigma(\mathbf{S}_{\mathcal I})\odot
  \operatorname{MLP}(\operatorname{LN}(\mathbf{T}_{\mathcal I}+\gamma(\tilde{\mathbf{T}}_{\mathcal I}-\mathbf{T}_{\mathcal I}))).
 \end{equation}
-Here $\gamma$ is learned. The result is scattered to the original positions; within the refinement branch, unselected tokens remain unchanged. Shared context aggregation costs $O(9HWC)$, while the channel MLP costs $O(\rho HWC^2)$ instead of $O(HWC^2)$ for full token refinement. Validation selection chooses $\rho=0.25$ for the formal WSR comparison; smaller ratios are included in the validation-only studies.
+Here $\gamma$ is learned. The result is scattered to the original positions; within the refinement branch, unselected tokens remain unchanged. Shared context aggregation costs $O(9HWC)$, while the channel MLP costs $O(\rho HWC^2)$ instead of $O(HWC^2)$ for full token refinement. Validation selection chooses $\rho=0.25$ for the formal WSR comparison; smaller ratios are included in the validation-only studies. Figure~\ref{fig:router} details the full routing path.
+
+\begin{figure*}[t]
+\centering
+\figureplaceholder[1.75in]{Detailed WSR workflow: fixed Haar LL/LH/HL/HH maps, normalized routing cues, learned logits plus fixed prior, exact top-$k$ indices, gather--refine--scatter, wave gate, and adaptive fusion.}
+\caption{Wavelet-conditioned routing and exact sparse refinement. The final diagram should annotate tensor shapes and show that the channel MLP operates only on the selected $k$ locations.}
+\label{fig:router}
+\end{figure*}
 
 \subsection{Wave Enhancement and Adaptive Fusion}
 A small gate on $[|\mathbf{LH}|;|\mathbf{HL}|;|\mathbf{HH}|]$ yields $\mathbf{A}_w$, and the wave output is $\mathbf{X}'_w=\mathbf{X}_w\odot(1+\mathbf{A}_w)$. Because top-$k$ route density is fixed by construction, it cannot provide sample-specific evidence. Instead, our two-way softmax gate consumes global context, mean HF energy, and selected-route confidence $q=k^{-1}\sum_{i\in\mathcal I}\sigma(S_i)$. The output is
@@ -99,7 +120,14 @@ where $\beta_w$ and $\beta_r$ are learned residual scales initialized near zero.
 
 \section{Experiments}
 \subsection{Leakage-Audited Data Protocol}
-DsPCBSD+~\cite{dspcbsd} is the primary industrial dataset: 10,259 images, 20,276 boxes, and nine classes. Its official 8,208-image training split is stratified once with seed 2026 into 7,387 training and 821 validation images; the 2,051-image official validation split is locked as final test. DeepPCB uses its 850/150/500 train/validation/test split and is identified as a classic benchmark with artificially generated defects, rather than a substitute for real production data. Exact hashes, perceptual near-duplicate candidates, normalized boxes, classes, missing labels, and repeated pseudo-box signatures are audited before training. No exact cross-split duplicate is present locally, but the public releases do not provide complete board/lot identifiers; perceptual candidates are therefore disclosed rather than treated as proof of group independence. DefectDet is excluded from formal tables because its small random split lacks sequence/template groups. The local PKU conversion is excluded because its repeated full-image boxes are invalid annotations. PCB-IND~\cite{pcbind}, a 2026 real-AOI dataset with 4,789 images and 5,932 instances, is reserved as an external extension until its official data and a group-safe split are verified.
+DsPCBSD+~\cite{dspcbsd} is the primary industrial dataset: 10,259 images, 20,276 boxes, and nine classes. Its official 8,208-image training split is stratified once with seed 2026 into 7,387 training and 821 validation images; the 2,051-image official validation split is locked as final test. DeepPCB uses its 850/150/500 train/validation/test split and is identified as a classic benchmark with artificially generated defects, rather than a substitute for real production data. Exact hashes, perceptual near-duplicate candidates, normalized boxes, classes, missing labels, and repeated pseudo-box signatures are audited before training. No exact cross-split duplicate is present locally, but the public releases do not provide complete board/lot identifiers; perceptual candidates are therefore disclosed rather than treated as proof of group independence. DefectDet is excluded from formal tables because its small random split lacks sequence/template groups. The local PKU conversion is excluded because its repeated full-image boxes are invalid annotations. PCB-IND~\cite{pcbind}, a 2026 real-AOI dataset with 4,789 images and 5,932 instances, is reserved as an external extension until its official data and a group-safe split are verified. Figure~\ref{fig:datasets} specifies the planned dataset panel.
+
+\begin{figure*}[t]
+\centering
+\figureplaceholder[1.55in]{Representative DsPCBSD+ and DeepPCB images with bounding boxes, class labels, small-object scale indicators, and a compact train/validation/test split diagram.}
+\caption{Datasets and leakage-audited split protocol. The final figure should contrast real AOI defects in DsPCBSD+ with the artificially generated DeepPCB benchmark and visualize the locked test boundary.}
+\label{fig:datasets}
+\end{figure*}
 
 \subsection{Comparison Policy}
 We separate two tracks. The architecture-controlled track compares pretrained YOLO11s and WSR-YOLO under identical optimization, resolution, augmentations, and seven paired seeds on DsPCBSD+; DeepPCB uses three paired seeds and is interpreted descriptively. Inserting WSR shifts later Ultralytics layer indices, so baseline keys are explicitly remapped around the inserted layer; a run is rejected unless at least 99\% of target parameters are transferred. The current-method track uses pinned official implementations and three seeds for YOLOv10-M, YOLO11-M, YOLOv12-M, YOLO26-M, RF-DETR-M, RT-DETRv2-S, D-FINE-M, and DEIM-D-FINE-M. These larger models are not architecture-controlled peers; their purpose is to place the small WSR model in the contemporary accuracy landscape. We report parameters with accuracy and do not infer a speed ranking because a complete same-device latency matrix is unavailable.
@@ -121,7 +149,7 @@ On DeepPCB, WSR gains 4.196 AP points and wins all three paired seeds. The exact
 \caption{Architecture-controlled test results. Values are mean $\pm$ standard deviation across seeds and all metrics are percentages.}
 \label{tab:controlled}
 \small
-\resizebox{\textwidth}{!}{%
+\resizebox{\linewidth}{!}{%
 \begin{tabular}{llrrrrrrr}
 \toprule
 Dataset & Model & $n$ & Params (M) & GFLOPs & AP & AP$_{50}$ & AP$_{75}$ & AP$_S$ \\
@@ -142,6 +170,7 @@ The official M-scale and transformer implementations in Table~\ref{tab:sota} all
 \caption{DsPCBSD+ context using pinned official implementations. AP is mean $\pm$ standard deviation over three seeds; WSR uses seven seeds.}
 \label{tab:sota}
 \small
+\resizebox{\linewidth}{!}{%
 \begin{tabular}{lrr}
 \toprule
 Model & Params (M) & AP \\
@@ -156,19 +185,20 @@ RF-DETR-M & 33.51 & 52.02$\pm$0.44 \\
 DEIM-D-FINE-M & 19.48 & 52.67$\pm$0.54 \\
 D-FINE-M & 19.48 & \textbf{53.08$\pm$0.20} \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 \subsection{Validation Selection and Stability Audit}
 The original selection screen uses three seeds, 30 epochs, a fixed 35\% training subset, and the full validation split. The repeated YOLO11s mean is 32.679 AP. P3 routing at 12.5\%, P4 routing at 12.5\%, P3 routing at 25\%, and P3+P4 routing at 12.5\% obtain 33.288, 33.598, 33.962, and 34.165 AP, respectively. The formal P3/25\% model is frozen by the pilot gate before test evaluation. Its validation gain of 1.283 points contracts to 0.155 points on the seven-seed test comparison, illustrating why validation selection and formal evidence must remain separate.
 
-After the formal result, WSRStable is evaluated in three additional pre-registered, validation-only engineering rounds. The hard gate requires at least +1.00 AP point, route enrichment of at least 2.0$\times$, and no more than 1.20$\times$ baseline model-only latency. Table~\ref{tab:stable} reports all 11 candidates. Every candidate passes the mechanism check, but none passes all three checks. The largest gain, +1.240 points for P3+P4/12.5\%, costs 1.400$\times$ latency. Under the latency limit, the strongest candidate is P4/12.5\% with residual scale 0.20: +0.652 points, 3.071$\times$ enrichment, and 1.153$\times$ latency.
+After the formal result, WSRStable is evaluated in three additional pre-registered, validation-only engineering rounds. The hard gate requires at least +1.00 AP point, route enrichment of at least 2.0$\times$, and no more than 1.20$\times$ baseline model-only latency. Table~\ref{tab:stable} reports all 11 candidates, and Fig.~\ref{fig:tradeoff} is reserved for their Pareto view. Every candidate passes the mechanism check, but none passes all three checks. The largest gain, +1.240 points for P3+P4/12.5\%, costs 1.400$\times$ latency. Under the latency limit, the strongest candidate is P4/12.5\% with residual scale 0.20: +0.652 points, 3.071$\times$ enrichment, and 1.153$\times$ latency.
 
 \begin{table*}[t]
 \centering
 \caption{Complete WSRStable validation-only audit. Gain is relative to the repeated 32.679 AP baseline; ``pass'' requires all three pre-registered checks.}
 \label{tab:stable}
 \scriptsize
+\resizebox{\linewidth}{!}{%
 \begin{tabular}{clrrrrc}
 \toprule
 Round & Candidate & $\Delta$AP & Seed wins & Enrichment & Latency & Pass \\
@@ -185,18 +215,39 @@ Round & Candidate & $\Delta$AP & Seed wins & Enrichment & Latency & Pass \\
 3 & P3, 12.5\%, $(\beta_w,\beta_r)=(.45,.10)$ & +0.021 & 2/3 & 2.968$\times$ & 1.181$\times$ & no \\
 3 & P3, 25\%, $(\beta_w,\beta_r)=(.45,.10)$ & +0.448 & 2/3 & 2.433$\times$ & 1.251$\times$ & no \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table*}
 
+\begin{figure}[t]
+\centering
+\figureplaceholder[1.75in]{Scatter plot of validation AP gain versus model-only latency ratio for all 11 WSRStable candidates, with color indicating route enrichment and dashed lines at +1.00 AP and 1.20$\times$ latency.}
+\caption{Accuracy--latency trade-off in the three validation-locked stability rounds. The feasible upper-left region should be shaded and the two boundary candidates annotated.}
+\label{fig:tradeoff}
+\end{figure}
+
 \subsection{Mechanism and Efficiency}
-Route recall is the fraction of ground-truth feature pixels selected; enrichment divides recall by the random expectation at the same density. For the seed-13 formal checkpoint, the 25\% route budget recalls 79.11\% of defect pixels on DsPCBSD+ and 88.68\% on DeepPCB, corresponding to 3.16$\times$ and 3.55$\times$ enrichment. Center-hit rates are 86.80\% and 99.76\%. The wave-gate inside/outside means are 0.446/0.453 and 0.481/0.497, respectively, so the dense wave gate alone is not more active inside boxes. The supported mechanism is therefore the combined routing score, not a claim that every internal gate independently localizes defects.
+Route recall is the fraction of ground-truth feature pixels selected; enrichment divides recall by the random expectation at the same density. For the seed-13 formal checkpoint, the 25\% route budget recalls 79.11\% of defect pixels on DsPCBSD+ and 88.68\% on DeepPCB, corresponding to 3.16$\times$ and 3.55$\times$ enrichment. Center-hit rates are 86.80\% and 99.76\%. The wave-gate inside/outside means are 0.446/0.453 and 0.481/0.497, respectively, so the dense wave gate alone is not more active inside boxes. The supported mechanism is therefore the combined routing score, not a claim that every internal gate independently localizes defects. Figure~\ref{fig:routes} is reserved for paired successes and failures.
+
+\begin{figure*}[t]
+\centering
+\figureplaceholder[1.75in]{Qualitative route overlays on both datasets: input, ground truth, route heat map, selected top-$k$ mask, prediction, and paired success/failure examples.}
+\caption{Qualitative routing behavior. The final panel should include both high-enrichment successes and representative misses to avoid selection bias.}
+\label{fig:routes}
+\end{figure*}
 
 WSR adds 13,342 parameters (approximately 0.14\%) and 0.038 GFLOPs (approximately 0.18\%). Wall-clock behavior is less favorable. On matched RTX 3090 GPUs, batch-one model-only overhead ranges from 3.9\% to 51.5\% across dataset-specific heads and FP16/FP32 measurements; the devices are matched models but not the same physical GPU. The same-GPU WSRStable screens likewise range from 1.125$\times$ to 1.400$\times$ in the first round. We consequently claim arithmetic sparsity, not a universal latency reduction.
 
 \subsection{Conditional Robustness and Frequency Evidence}
 The completed corruption and frequency studies use the DeepPCB seed-13 checkpoint and are auxiliary rather than multi-seed confirmatory tests. Across 40 corruption--severity pairs, WSR has mean AP 46.51 versus 42.68 for YOLO11s and wins 24 conditions. After normalization by each checkpoint's clean AP, retention is 65.6\% versus 64.1\%. Gains concentrate in brightness, contrast, Gaussian noise, and JPEG, while WSR is worse under defocus blur, Poisson noise, and speckle. Robustness is therefore conditional rather than uniform.
 
-Haar counterfactuals further limit a simplistic frequency explanation. Keeping only the low-frequency reconstruction retains 67.43 AP for WSR, whereas keeping only high-frequency content yields 0.95 AP. Removing LH, HL, or HH individually gives 69.57, 70.19, and 69.21 AP. Low-frequency structure is thus essential, while directional details act as routing cues in combination with learned spatial context; no single high-frequency band is sufficient.
+Haar counterfactuals further limit a simplistic frequency explanation. Keeping only the low-frequency reconstruction retains 67.43 AP for WSR, whereas keeping only high-frequency content yields 0.95 AP. Removing LH, HL, or HH individually gives 69.57, 70.19, and 69.21 AP. Low-frequency structure is thus essential, while directional details act as routing cues in combination with learned spatial context; no single high-frequency band is sufficient. Figure~\ref{fig:robustness} combines the corruption and counterfactual evidence.
+
+\begin{figure*}[t]
+\centering
+\figureplaceholder[1.75in]{Two-part diagnostic figure: corruption retention curves by severity and visual Haar counterfactuals for low-only, high-only, remove-LH, remove-HL, and remove-HH conditions.}
+\caption{Conditional robustness and frequency interventions on DeepPCB. The final figure should show all severities and use the same example images and axes for baseline and WSR.}
+\label{fig:robustness}
+\end{figure*}
 
 \section{Reproducibility and Limitations}
 Formal runs require a clean, resolvable Git commit and a full content-hash dataset audit. Every result stores split and model seeds, protocol and source hashes, pretrained-transfer coverage, package versions, device, checkpoint hash, prediction hash, and unified-evaluator output; validated JSON files are frozen into a tracked registry. Official external repositories are pinned to exact commits. The three WSRStable decisions additionally store all input-result hashes and explicitly record \texttt{test\_evaluated=false}. Automated tests cover top-$k$ budget preservation, unchanged unrouted WSRStable tokens, uniform feature-scale route invariance, asymmetric residual initialization, architecture construction, and pretrained-transfer coverage.
