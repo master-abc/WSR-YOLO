@@ -130,7 +130,7 @@ def materialize_models(protocol: dict) -> dict[str, str | Path]:
         found = 0
         for section in ("backbone", "head"):
             for layer in model_yaml.get(section, []):
-                if len(layer) >= 4 and layer[2] in {"DWGSARouter", "WSR"}:
+                if len(layer) >= 4 and layer[2] in {"DWGSARouter", "WSR", "WSRStable"}:
                     layer[3] = list(variant["router_args"])
                     found += 1
         if not found:

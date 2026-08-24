@@ -11,7 +11,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from algorithm.dwgsa import DWGSARouter
+from algorithm.dwgsa import DWGSARouter, WSRStable
 from experiment.paper_b.corruptions import CORRUPTIONS, corrupt
 from experiment.paper_b.ablation import subset_coco_annotations, validation_run_directory
 from experiment.paper_b.coco_evaluator import evaluate_coco_predictions, predict_yolo_to_coco
@@ -227,6 +227,27 @@ class PaperBCoreTests(unittest.TestCase):
         kernel = weights.view(1, 1, 3, 3).expand(5, 1, 3, 3).contiguous()
         depthwise = F.conv2d(padded, kernel, groups=5)
         self.assertTrue(torch.allclose(depthwise, explicit, atol=1e-6, rtol=1e-6))
+
+    def test_stable_wsr_starts_near_identity_and_preserves_unrouted_tokens(self):
+        torch.manual_seed(23)
+        module = WSRStable(64, route_ratio=0.125, residual_init=0.1).enable_diagnostics().eval()
+        value = torch.randn(2, 64, 20, 20)
+        output = module(value)
+        relative_change = (output - value).abs().mean() / value.abs().mean()
+        self.assertLess(float(relative_change), 0.1)
+
+        sparse_change = (output[:, 32:] - value[:, 32:]).abs().sum(1, keepdim=True)
+        unselected = module.last_route_mask == 0
+        self.assertEqual(int(torch.count_nonzero(sparse_change[unselected])), 0)
+
+    def test_stable_router_is_uniform_scale_invariant(self):
+        torch.manual_seed(29)
+        module = WSRStable(64, route_ratio=0.125).enable_diagnostics().eval()
+        value = torch.rand(2, 64, 20, 20) + 0.1
+        module(value)
+        first_mask = module.last_route_mask.clone()
+        module(value * 3.0)
+        self.assertTrue(torch.equal(first_mask, module.last_route_mask))
 
     def test_counterfactuals_and_corruptions_preserve_shape(self):
         image = np.random.default_rng(7).integers(0, 256, (33, 35, 3), dtype=np.uint8)

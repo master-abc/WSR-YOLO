@@ -18,7 +18,7 @@ from algorithm.fdsa import (
 )
 from algorithm.dwgsa import (
     DWGSA, DWGSAWaveOnly, DWGSASparseOnly,
-    DWGSANoGeoPrior, DWGSANoAdaptive, DWGSASingleLevel, DWGSARouter, WSR,
+    DWGSANoGeoPrior, DWGSANoAdaptive, DWGSASingleLevel, DWGSARouter, WSR, WSRStable,
 )
 from algorithm.cbam import CBAM
 from algorithm.coordatt import CoordAtt
@@ -39,6 +39,7 @@ def register_custom_modules():
         "DWGSASingleLevel": DWGSASingleLevel,
         "DWGSARouter": DWGSARouter,
         "WSR": WSR,
+        "WSRStable": WSRStable,
         # FDSA（前代模块，保留用于对比）
         "FDSA": FDSA,
         "FDSAFreqOnly": FDSAFreqOnly,

@@ -443,6 +443,87 @@ class WaveletContextRouter(nn.Module):
         return route_logits, wave_attention, hf_for_fusion
 
 
+class StableWaveletContextRouter(nn.Module):
+    """Illumination-stable Haar router used by :class:`WSRStable`.
+
+    The original router normalises the three aggregate maps, but feeds raw
+    directional magnitudes to the wave gate.  That makes the dense wave branch
+    sensitive to contrast and illumination changes.  Here every band is first
+    converted to a per-image spatial ratio.  The fixed top-k prior and the
+    learned router therefore depend on relative spatial structure rather than
+    absolute feature magnitude.
+    """
+
+    def __init__(self, channels, use_hf=True, use_ll=True, learned_router=True):
+        super().__init__()
+        self.use_hf = bool(use_hf)
+        self.use_ll = bool(use_ll)
+        self.learned_router = bool(learned_router)
+        self.dwt = HaarDWT2D(channels)
+        self.router = nn.Sequential(
+            nn.Conv2d(3, 16, 3, 1, 1, bias=False),
+            nn.GroupNorm(4, 16),
+            nn.SiLU(inplace=True),
+            nn.Conv2d(16, 1, 1, bias=True),
+        )
+        self.wave_gate = nn.Sequential(
+            nn.Conv2d(3, 8, 3, 1, 1, bias=False),
+            nn.SiLU(inplace=True),
+            nn.Conv2d(8, 1, 1, bias=True),
+            nn.Sigmoid(),
+        )
+
+    @staticmethod
+    def _spatial_ratio(value):
+        return value / (value.mean(dim=(2, 3), keepdim=True) + 1e-6)
+
+    def forward(self, x):
+        ll, lh, hl, hh = self.dwt(x)
+        directional = torch.cat(
+            [
+                lh.abs().mean(1, keepdim=True),
+                hl.abs().mean(1, keepdim=True),
+                hh.abs().mean(1, keepdim=True),
+            ],
+            dim=1,
+        )
+        directional_ratio = self._spatial_ratio(directional)
+        hf_ratio = directional_ratio.mean(1, keepdim=True)
+        ll_context = ll.abs().mean(1, keepdim=True)
+        ll_ratio = self._spatial_ratio(ll_context)
+        ll_residual = (ll_context - F.avg_pool2d(ll_context, 3, 1, 1)).abs()
+        geo_ratio = self._spatial_ratio(ll_residual)
+
+        size = x.shape[2:]
+        hf_full = F.interpolate(hf_ratio, size=size, mode="bilinear", align_corners=False)
+        ll_full = F.interpolate(ll_ratio, size=size, mode="bilinear", align_corners=False)
+        geo_full = F.interpolate(geo_ratio, size=size, mode="bilinear", align_corners=False)
+        if not self.use_hf:
+            hf_full = torch.zeros_like(hf_full)
+        if not self.use_ll:
+            ll_full = torch.zeros_like(ll_full)
+            geo_full = torch.zeros_like(geo_full)
+
+        # log1p bounds isolated high-energy outliers while preserving ordering.
+        context = torch.log1p(torch.cat([hf_full, ll_full, geo_full], dim=1))
+        learned_logits = self.router(context) if self.learned_router else torch.zeros_like(hf_full)
+        route_logits = learned_logits + torch.log1p(hf_full + geo_full)
+        if self.use_hf:
+            wave_attention = F.interpolate(
+                self.wave_gate(torch.log1p(directional_ratio)),
+                size=size,
+                mode="bilinear",
+                align_corners=False,
+            )
+        else:
+            wave_attention = torch.zeros_like(hf_full)
+
+        # Spatial dispersion remains sample-specific but is invariant to a
+        # uniform rescaling of the feature tensor.
+        hf_for_fusion = (hf_ratio - 1.0).abs() if self.use_hf else torch.zeros_like(hf_ratio)
+        return route_logits, wave_attention, hf_for_fusion
+
+
 class DWGSARouter(nn.Module):
     """Wavelet-conditioned top-k sparse router for high-resolution features.
 
@@ -551,6 +632,87 @@ class WSR(DWGSARouter):
     """
 
     pass
+
+
+class WSRStable(DWGSARouter):
+    """Pretraining-preserving residual WSR.
+
+    The legacy WSR concatenates two *full* branch features and adds them to the
+    input.  With an initially near-uniform fusion gate this scales pretrained
+    activations by roughly 1.5 before the new block has learned anything.  This
+    variant fuses only branch deltas and applies small learnable residual
+    scales.  Consequently, unselected sparse-branch tokens remain exactly
+    unchanged and the inserted block starts close to the pretrained identity.
+    """
+
+    def __init__(
+        self,
+        channels,
+        route_ratio=0.125,
+        hidden_ratio=0.25,
+        use_hf=True,
+        use_ll=True,
+        adaptive_fusion=True,
+        learned_router=True,
+        residual_init=0.1,
+    ):
+        super().__init__(
+            channels,
+            route_ratio,
+            hidden_ratio,
+            use_hf,
+            use_ll,
+            adaptive_fusion,
+            learned_router,
+        )
+        half = self.channels // 2
+        self.context_router = StableWaveletContextRouter(
+            half, use_hf=use_hf, use_ll=use_ll, learned_router=learned_router
+        )
+        fusion_hidden = max(self.channels // 16, 8)
+        self.fusion = nn.Sequential(
+            nn.LayerNorm(self.channels + 2),
+            nn.Linear(self.channels + 2, fusion_hidden),
+            nn.SiLU(inplace=True),
+            nn.Linear(fusion_hidden, 2),
+            nn.Softmax(dim=1),
+        )
+        self.residual_scale = nn.Parameter(
+            torch.full((2,), float(residual_init), dtype=torch.float32)
+        )
+
+    def forward(self, x):
+        if x.shape[2] < 2 or x.shape[3] < 2:
+            return x
+
+        wave, sparse = x.chunk(2, dim=1)
+        route_logits, wave_attention, hf_energy = self.context_router(wave)
+        sparse_out, route_confidence, route_mask, route_scores = self.sparse_refine(
+            sparse, route_logits, capture_diagnostics=self.diagnostics_enabled
+        )
+
+        wave_delta = wave * wave_attention
+        sparse_delta = sparse_out - sparse
+        global_context = F.adaptive_avg_pool2d(x, 1).flatten(1)
+        hf_dispersion = hf_energy.mean(dim=(1, 2, 3), keepdim=False).unsqueeze(1)
+        if self.adaptive_fusion:
+            weights = self.fusion(
+                torch.cat([global_context, hf_dispersion, route_confidence], dim=1)
+            )
+        else:
+            weights = x.new_full((x.shape[0], 2), 0.5)
+
+        residual_scale = self.residual_scale.to(dtype=weights.dtype)
+        wave_scale = (weights[:, 0] * residual_scale[0]).view(-1, 1, 1, 1)
+        sparse_scale = (weights[:, 1] * residual_scale[1]).view(-1, 1, 1, 1)
+        out = x + torch.cat([wave_delta * wave_scale, sparse_delta * sparse_scale], dim=1)
+
+        if self.diagnostics_enabled:
+            self.last_route_mask = route_mask.detach()
+            self.last_route_scores = route_scores.detach()
+            self.last_wave_attention = wave_attention.detach()
+            self.last_fusion_weights = weights.detach()
+        return out
 
 
 class DWGSA(nn.Module):
