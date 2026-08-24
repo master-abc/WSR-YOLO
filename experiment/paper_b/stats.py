@@ -160,11 +160,34 @@ def paired_significance(
 
 
 def format_cell(summary: dict[str, Any]) -> str:
+    """Format a metric for UTF-8 Markdown/CSV output."""
     if summary["mean"] is None:
         return "--"
     if summary["std"] is None:
         return f"{100 * summary['mean']:.2f}"
-    return f"{100 * summary['mean']:.2f} ± {100 * summary['std']:.2f}"
+    return f"{100 * summary['mean']:.2f} +/- {100 * summary['std']:.2f}"
+
+
+def format_latex_cell(summary: dict[str, Any]) -> str:
+    if summary["mean"] is None:
+        return "--"
+    if summary["std"] is None:
+        return f"{100 * summary['mean']:.2f}"
+    return f"{100 * summary['mean']:.2f} $\\pm$ {100 * summary['std']:.2f}"
+
+
+def latex_escape(value: str) -> str:
+    replacements = {
+        "\\": r"\textbackslash{}",
+        "&": r"\&",
+        "%": r"\%",
+        "$": r"\$",
+        "#": r"\#",
+        "_": r"\_",
+        "{": r"\{",
+        "}": r"\}",
+    }
+    return "".join(replacements.get(character, character) for character in value)
 
 
 def write_outputs(rows: list[dict[str, Any]], significance: list[dict[str, Any]], output: Path) -> None:
@@ -193,16 +216,31 @@ def write_outputs(rows: list[dict[str, Any]], significance: list[dict[str, Any]]
         "\\midrule",
     ]
     for row in rows:
-        cells = [
+        markdown_cells = [
             format_cell(row[metric])
+            for metric in ("map50_95", "map50", "map75", "ap_small", "ap_medium", "ap_large")
+        ]
+        latex_cells = [
+            format_latex_cell(row[metric])
             for metric in ("map50_95", "map50", "map75", "ap_small", "ap_medium", "ap_large")
         ]
         n = row["map50_95"]["n"]
         lines.append(
-            f"| {row['track']} | {row['dataset']} | {row['model']} | {n} | " + " | ".join(cells) + " |\n"
+            f"| {row['track']} | {row['dataset']} | {row['model']} | {n} | "
+            + " | ".join(markdown_cells)
+            + " |\n"
         )
         latex.append(
-            " & ".join([row["track"], row["dataset"], row["model"], str(n), *cells]) + " \\\\"
+            " & ".join(
+                [
+                    latex_escape(row["track"]),
+                    latex_escape(row["dataset"]),
+                    latex_escape(row["model"]),
+                    str(n),
+                    *latex_cells,
+                ]
+            )
+            + " \\\\"
         )
     latex.extend(["\\bottomrule", "\\end{tabular}"])
     (output / "summary.md").write_text("".join(lines), encoding="utf-8")

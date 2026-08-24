@@ -21,12 +21,19 @@ from experiment.paper_b.frequency_interventions import haar_filters, intervene
 from experiment.paper_b.pilot import benchmark_path, diagnostics_path, evaluate_gate, result_path
 from experiment.paper_b.pretrained import remap_source_key, transfer_pretrained
 from experiment.paper_b.common import sha256_file
+from experiment.paper_b.stats import format_cell, format_latex_cell, latex_escape
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[3]
 
 
 class PaperBCoreTests(unittest.TestCase):
+    def test_statistics_tables_are_latex_safe(self):
+        summary = {"mean": 0.4669, "std": 0.0072}
+        self.assertEqual(format_cell(summary), "46.69 +/- 0.72")
+        self.assertEqual(format_latex_cell(summary), "46.69 $\\pm$ 0.72")
+        self.assertEqual(latex_escape("dspcbsd_plus"), r"dspcbsd\_plus")
+
     def test_inserted_layer_key_remapping(self):
         self.assertEqual(remap_source_key("model.4.cv.weight", [5]), "model.4.cv.weight")
         self.assertEqual(remap_source_key("model.5.cv.weight", [5]), "model.6.cv.weight")

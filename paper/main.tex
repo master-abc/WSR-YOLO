@@ -1,21 +1,22 @@
 \documentclass[conference]{IEEEtran}
 \usepackage{amsmath,amssymb,bm}
 \usepackage{booktabs,multirow,makecell}
+\usepackage{graphicx}
 \usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
 
 \newcommand{\method}{WSR-YOLO}
 \newcommand{\module}{WSR}
-\newcommand{\pending}{\textit{pending}}
 \providecommand{\ProjectRoot}{}
 
 \begin{document}
 
-\title{Wavelet-Conditioned Top-$k$ Sparse Routing for Tiny PCB Defect Detection}
+\title{Wavelet-Conditioned Top-$k$ Sparse Routing for Tiny PCB Defect Detection:\\
+An Audited Accuracy--Efficiency Study}
 \author{\IEEEauthorblockN{Anonymous Authors}}
 \maketitle
 
 \begin{abstract}
-Tiny printed-circuit-board (PCB) defects occupy few pixels and are easily overwhelmed by repetitive traces and pads. We introduce wavelet-conditioned sparse routing (WSR), a plug-in feature refinement block that uses fixed Haar subbands to route a strict spatial token budget. A lightweight dense router combines directional high-frequency energy, low-frequency context, and its local residual; only the top-$k$ locations are gathered, transformed by a channel MLP, and scattered back. Consequently, the dominant learnable refinement cost scales with the routing ratio rather than the full feature area. WSR is placed at the high-resolution P3/8 stage of YOLO11s, where minute defects remain spatially resolved. We design a leakage-audited evaluation on the industrial DsPCBSD+ dataset and classic DeepPCB benchmark, with recent one-stage and end-to-end detectors, repeated seeds, paired statistics, corruption tests, cross-domain transfer, and frequency counterfactuals. Numerical claims will be inserted only from the versioned experiment pipeline after all preregistered runs finish.
+Tiny printed-circuit-board (PCB) defects occupy few pixels and are easily obscured by repetitive traces and pads. We introduce wavelet-conditioned sparse routing (WSR), a plug-in refinement block that combines fixed Haar detail and low-frequency context to rank spatial features, then applies a channel transform to an exact top-$k$ token budget. On the industrial DsPCBSD+ test set, seven paired seeds give 46.69$\pm$0.72 AP$_{50:95}$ for WSR-YOLO11s and 46.54$\pm$0.36 for YOLO11s: a 0.15-point mean gain that is not statistically reliable (two-sided Wilcoxon $p=0.8125$). On DeepPCB, the corresponding three-seed means are 68.81$\pm$4.12 and 64.61$\pm$1.91, a descriptive 4.20-point gain ($p=0.25$). The routing mechanism itself is consistent: at a 25\% budget, selected locations are enriched inside defects by 3.16$\times$ on DsPCBSD+ and 3.55$\times$ on DeepPCB. WSR adds only 13.3K parameters and about 0.038 GFLOPs, although sparse indexing produces hardware-sensitive latency. Three additional validation-locked stability rounds find no configuration that simultaneously gains at least one AP point and stays within 1.20$\times$ baseline latency. These results support wavelet-conditioned routing as a measurable allocation mechanism, but not a claim of state-of-the-art or uniformly improved detection accuracy.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -27,12 +28,14 @@ Automated optical inspection must localize defects that are small, low contrast,
 
 We therefore formulate feature enhancement as budgeted routing. A fixed Haar transform supplies directional detail and structural context without adding a learned analysis transform. A small convolutional router scores every P3 location, while the expensive channel transform is executed on only $k=\lceil\rho HW\rceil$ selected tokens. This distinction is important: multiplying a dense feature transform by a soft mask changes activations but does not reduce the transform's spatial complexity.
 
+The empirical question is separate from the architectural one. A router can concentrate its budget on defects without improving the final detector, and a low-FLOP sparse operator can still be slow because top-$k$, gather, and scatter are poorly fused on current hardware. We therefore evaluate three claims independently: whether routes are defect-enriched, whether detection improves across paired seeds, and whether arithmetic savings translate to measured latency. This separation also prevents a mechanism visualization from being presented as accuracy evidence.
+
 Our contributions are:
 \begin{itemize}
-    \item We propose WSR, which couples fixed Haar priors to exact top-$k$ gather--refine--scatter computation at P3/8. The channel-refinement FLOPs scale linearly with the route ratio $\rho$.
-    \item We combine high-frequency anomaly cues with low-frequency structural residuals and an input-adaptive two-branch fusion, while exposing route masks and gates for direct mechanism measurement.
-    \item We test the claimed mechanism with route recall/enrichment and pixel-level Haar counterfactuals, rather than relying only on attention visualizations.
-    \item We establish a reproducible two-benchmark protocol with a locked industrial test set, recent detector baselines, repeated seeds, paired inference, robustness, few-shot, and zero-shot cross-domain experiments.
+    \item We propose WSR, which couples fixed Haar priors to exact top-$k$ gather--refine--scatter computation at the high-resolution P3/8 stage. The channel-refinement cost scales linearly with the route ratio $\rho$.
+    \item We expose route masks and fusion gates and quantify route recall and same-budget enrichment. Test-set enrichment reaches 3.16$\times$ on DsPCBSD+ and 3.55$\times$ on DeepPCB at $\rho=0.25$.
+    \item We conduct a leakage-audited two-benchmark study with paired seeds, a locked industrial test split, unified COCO evaluation, recent official detector implementations, and explicit accuracy--latency gates.
+    \item We report the boundary of the method rather than selectively reporting its best seed: the primary seven-seed gain is small and nonsignificant, and three validation-only stability rounds fail the joint accuracy--latency criterion.
 \end{itemize}
 
 \section{Related Work}
@@ -75,7 +78,7 @@ Nine learned directional weights $\bm{a}$ define a shared depthwise $3\times3$ c
  \sigma(\mathbf{S}_{\mathcal I})\odot
  \operatorname{MLP}(\operatorname{LN}(\mathbf{T}_{\mathcal I}+\gamma(\tilde{\mathbf{T}}_{\mathcal I}-\mathbf{T}_{\mathcal I}))).
 \end{equation}
-Here $\gamma$ is learned. The result is scattered to the original positions; unselected tokens remain unchanged. Shared context aggregation costs $O(9HWC)$, while the channel MLP costs $O(\rho HWC^2)$ instead of $O(HWC^2)$ for full token refinement. We use $\rho=0.125$ by default and report ratio sweeps.
+Here $\gamma$ is learned. The result is scattered to the original positions; within the refinement branch, unselected tokens remain unchanged. Shared context aggregation costs $O(9HWC)$, while the channel MLP costs $O(\rho HWC^2)$ instead of $O(HWC^2)$ for full token refinement. Validation selection chooses $\rho=0.25$ for the formal WSR comparison; smaller ratios are included in the validation-only studies.
 
 \subsection{Wave Enhancement and Adaptive Fusion}
 A small gate on $[|\mathbf{LH}|;|\mathbf{HL}|;|\mathbf{HH}|]$ yields $\mathbf{A}_w$, and the wave output is $\mathbf{X}'_w=\mathbf{X}_w\odot(1+\mathbf{A}_w)$. Because top-$k$ route density is fixed by construction, it cannot provide sample-specific evidence. Instead, our two-way softmax gate consumes global context, mean HF energy, and selected-route confidence $q=k^{-1}\sum_{i\in\mathcal I}\sigma(S_i)$. The output is
@@ -85,37 +88,123 @@ A small gate on $[|\mathbf{LH}|;|\mathbf{HL}|;|\mathbf{HH}|]$ yields $\mathbf{A}
 \end{equation}
 At 640 pixels, WSR adds about 13.3K parameters to the dataset-specific YOLO11s detector. Exact parameters, FLOPs, peak memory, and latency are generated from the frozen checkpoints. FLOPs do not imply negligible wall-clock cost: top-$k$, gather, and scatter are hardware-sensitive and are therefore benchmarked directly.
 
+\subsection{Pretraining-Preserving Stability Variant}
+The formal comparison uses the validation-selected WSR above with $\rho=0.25$. In that design, concatenated full branch features are added to $\mathbf X$; consequently, unselected refinement tokens are unchanged inside $\mathbf X'_r$ but the complete block is not initially identity-preserving. We subsequently introduce WSRStable to test whether this optimization issue explains the modest formal gain. WSRStable converts each Haar magnitude to a per-image spatial ratio, applies $\log(1+\cdot)$ before the learned router and wave gate, and replaces batch normalization in the router with group normalization. It fuses branch deltas rather than full features:
+\begin{equation}
+ \mathbf{Y}=\mathbf{X}+
+ [\beta_w\alpha_w(\mathbf{X}'_w-\mathbf{X}_w);
+  \beta_r\alpha_r(\mathbf{X}'_r-\mathbf{X}_r)],
+\end{equation}
+where $\beta_w$ and $\beta_r$ are learned residual scales initialized near zero. Thus, an unrouted sparse token contributes exactly zero refinement delta and the inserted module starts close to the pretrained identity. WSRStable is evaluated only on the validation protocol; because no candidate passes the pre-registered gate, it is not substituted into the locked formal test comparison.
+
 \section{Experiments}
 \subsection{Leakage-Audited Data Protocol}
 DsPCBSD+~\cite{dspcbsd} is the primary industrial dataset: 10,259 images, 20,276 boxes, and nine classes. Its official 8,208-image training split is stratified once with seed 2026 into 7,387 training and 821 validation images; the 2,051-image official validation split is locked as final test. DeepPCB uses its 850/150/500 train/validation/test split and is identified as a classic benchmark with artificially generated defects, rather than a substitute for real production data. Exact hashes, perceptual near-duplicate candidates, normalized boxes, classes, missing labels, and repeated pseudo-box signatures are audited before training. No exact cross-split duplicate is present locally, but the public releases do not provide complete board/lot identifiers; perceptual candidates are therefore disclosed rather than treated as proof of group independence. DefectDet is excluded from formal tables because its small random split lacks sequence/template groups. The local PKU conversion is excluded because its repeated full-image boxes are invalid annotations. PCB-IND~\cite{pcbind}, a 2026 real-AOI dataset with 4,789 images and 5,932 instances, is reserved as an external extension until its official data and a group-safe split are verified.
 
 \subsection{Comparison Policy}
-We separate two tracks. The architecture-controlled track compares pretrained YOLO11s and WSR-YOLO under identical optimization, resolution, augmentations, and seven paired seeds. Inserting WSR shifts later Ultralytics layer indices, so baseline keys are explicitly remapped around the inserted layer; a run is rejected unless at least 99\% of target parameters are transferred. The current-method track uses pinned official implementations and three seeds for YOLOv10-M, YOLO11-M, YOLOv12-M, YOLO26-M, RF-DETR-M, RT-DETRv2-S, D-FINE-M, and DEIM-D-FINE-M. These methods span different capacity--latency points, so parameters and measured latency accompany accuracy. The controlled YOLO11s pair shares one maximum-80-epoch SGD recipe with identical early stopping; current comparators retain architecture-appropriate official optimizers and schedules, which are reported beside each result. Every model starts from its official checkpoint. All methods receive identical split files, export raw COCO detections, and are evaluated by the same pinned \texttt{pycocotools.COCOeval}. Test labels are never used for architecture or checkpoint selection.
+We separate two tracks. The architecture-controlled track compares pretrained YOLO11s and WSR-YOLO under identical optimization, resolution, augmentations, and seven paired seeds on DsPCBSD+; DeepPCB uses three paired seeds and is interpreted descriptively. Inserting WSR shifts later Ultralytics layer indices, so baseline keys are explicitly remapped around the inserted layer; a run is rejected unless at least 99\% of target parameters are transferred. The current-method track uses pinned official implementations and three seeds for YOLOv10-M, YOLO11-M, YOLOv12-M, YOLO26-M, RF-DETR-M, RT-DETRv2-S, D-FINE-M, and DEIM-D-FINE-M. These larger models are not architecture-controlled peers; their purpose is to place the small WSR model in the contemporary accuracy landscape. We report parameters with accuracy and do not infer a speed ranking because a complete same-device latency matrix is unavailable.
+
+The controlled YOLO11s pair shares one maximum-80-epoch SGD recipe with identical early stopping; current comparators retain architecture-appropriate official optimizers and schedules. Every model starts from its official checkpoint. All methods receive identical split files, export raw COCO detections, and are evaluated by the same pinned \texttt{pycocotools.COCOeval}. Test labels are never used for architecture or checkpoint selection.
 
 Controlled runs use at most 80 epochs, SGD, cosine decay, 640-pixel inputs, AMP, batch size 8 with nominal batch size 64 for gradient accumulation, and patience-15 early stopping. Architecture selection uses 30 epochs and a fixed 35\% training subset, equally for baseline and candidate, while retaining the complete validation split; final controlled runs use the entire training split. Higher-resolution studies are optional and cannot replace the preregistered 640-pixel main comparison. Preprocessing, forward, and post-processing latency is separated from model-only latency at batch one in FP32 and FP16, with warm-up, repeated trials, peak memory, parameters, and FLOPs on the same hardware.
 
 \subsection{Metrics and Statistics}
 We report COCO AP$_{50:95}$, AP$_{50}$, AP$_{75}$, size-stratified AP, average recall, and per-class AP with the canonical 100 detections per image. We do not report a single precision/recall/F1 operating point because no confidence threshold is selected on the validation set in the preregistered protocol. Seed-level values are summarized by mean, standard deviation, and 95\% Student-$t$ intervals. The primary baseline--ours comparison uses paired seeds, a two-sided Wilcoxon signed-rank test, Holm correction, and paired Cohen's $d_z$. Seven pairs are used because five pairs cannot attain $p<.05$ in an exact two-sided Wilcoxon test.
 
-\subsection{Main Results}
-The following table is generated from schema-validated, frozen seed-level JSON files. It must not be manually filled.
-\IfFileExists{\ProjectRoot{}experiment/paper_b/generated/tables/summary.tex}{%
-\input{\ProjectRoot{}experiment/paper_b/generated/tables/summary.tex}%
-}{%
-\begin{center}\pending: run the preregistered experiment matrix.\end{center}%
-}
+\subsection{Controlled Test Results}
+Table~\ref{tab:controlled} is computed from frozen seed-level JSON files. On DsPCBSD+, WSR increases mean AP$_{50:95}$ from 46.54 to 46.69, or 0.155 AP points. It wins four of seven paired seeds, but the two-sided Wilcoxon test gives $p=0.8125$ and $d_z=0.207$. The 95\% paired-$t$ interval for the difference is $[-0.535,0.844]$ AP points. The data therefore do not establish a reliable primary-dataset improvement. WSR is slightly higher in AP$_{75}$ and AP$_S$, but lower in AP$_M$ and AP$_L$; these secondary differences are not tested as independent claims.
 
-\subsection{Ablations Without Test-Set Selection}
-Placement (P3/P4/P5/P3+P4), route ratio (5/12.5/25/100\%), removal of HF or LL cues, fixed versus learned routing, and adaptive versus equal fusion are selected on validation only with three seeds. After freezing the variant, only the preregistered baseline and proposed model are evaluated on test. This prevents repeated test-set probing.
+On DeepPCB, WSR gains 4.196 AP points and wins all three paired seeds. The exact two-sided Wilcoxon value is nevertheless $p=0.25$ ($p_{\mathrm{Holm}}=0.50$), because three pairs provide little inferential resolution. We treat this as cross-benchmark evidence of a potentially useful but dataset-dependent effect, not proof of general superiority.
 
-\subsection{Mechanism, Robustness, and Transfer Tests}
-Route recall measures the fraction of ground-truth feature pixels selected; route enrichment divides this recall by the same-budget random expectation $\rho$. Center-hit rate and wave-gate inside/outside ratios provide complementary diagnostics. Pixel-level Haar counterfactuals retain only LL, retain only HF, or remove one directional band. Robustness uses deterministic Gaussian, Poisson, speckle, motion/defocus blur, brightness, contrast, and JPEG corruption at five severities. Data-efficiency curves use 1/5/10/25/50/100\% of training images. Zero-shot transfer maps DeepPCB and DsPCBSD+ to five shared classes and trains on one domain while testing the other without fine-tuning.
+\begin{table*}[t]
+\centering
+\caption{Architecture-controlled test results. Values are mean $\pm$ standard deviation across seeds and all metrics are percentages.}
+\label{tab:controlled}
+\small
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llrrrrrrr}
+\toprule
+Dataset & Model & $n$ & Params (M) & GFLOPs & AP & AP$_{50}$ & AP$_{75}$ & AP$_S$ \\
+\midrule
+DsPCBSD+ & YOLO11s & 7 & 9.416 & 21.319 & 46.54$\pm$0.36 & 80.25$\pm$0.48 & 46.13$\pm$0.86 & 39.45$\pm$0.68 \\
+DsPCBSD+ & WSR-YOLO11s & 7 & 9.430 & 21.358 & 46.69$\pm$0.72 & 80.46$\pm$0.86 & 46.57$\pm$1.12 & 39.99$\pm$0.88 \\
+DeepPCB & YOLO11s & 3 & 9.415 & 21.313 & 64.61$\pm$1.91 & 94.34$\pm$1.07 & 77.93$\pm$2.93 & 66.46$\pm$3.18 \\
+DeepPCB & WSR-YOLO11s & 3 & 9.428 & 21.351 & 68.81$\pm$4.12 & 95.46$\pm$0.43 & 82.86$\pm$5.54 & 69.44$\pm$2.18 \\
+\bottomrule
+\end{tabular}}
+\end{table*}
+
+\subsection{Contemporary Detector Context}
+The official M-scale and transformer implementations in Table~\ref{tab:sota} all exceed the small WSR-YOLO11s on DsPCBSD+, from 49.44 AP for YOLO11-M to 53.08 for D-FINE-M. They also contain 1.75$\times$--3.55$\times$ as many parameters. This comparison shows that WSR is compact, but it does not support a state-of-the-art claim. Because the models use their official architecture-appropriate recipes, the table is contextual rather than a controlled causal comparison.
+
+\begin{table}[t]
+\centering
+\caption{DsPCBSD+ context using pinned official implementations. AP is mean $\pm$ standard deviation over three seeds; WSR uses seven seeds.}
+\label{tab:sota}
+\small
+\begin{tabular}{lrr}
+\toprule
+Model & Params (M) & AP \\
+\midrule
+WSR-YOLO11s & 9.43 & 46.69$\pm$0.72 \\
+YOLO11-M & 20.06 & 49.44$\pm$0.20 \\
+YOLO26-M & 21.79 & 49.77$\pm$0.49 \\
+YOLOv10-M & 16.49 & 50.51$\pm$0.16 \\
+YOLOv12-M & 19.62 & 50.73$\pm$0.24 \\
+RT-DETRv2-S & 20.09 & 52.00$\pm$0.33 \\
+RF-DETR-M & 33.51 & 52.02$\pm$0.44 \\
+DEIM-D-FINE-M & 19.48 & 52.67$\pm$0.54 \\
+D-FINE-M & 19.48 & \textbf{53.08$\pm$0.20} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Validation Selection and Stability Audit}
+The original selection screen uses three seeds, 30 epochs, a fixed 35\% training subset, and the full validation split. The repeated YOLO11s mean is 32.679 AP. P3 routing at 12.5\%, P4 routing at 12.5\%, P3 routing at 25\%, and P3+P4 routing at 12.5\% obtain 33.288, 33.598, 33.962, and 34.165 AP, respectively. The formal P3/25\% model is frozen by the pilot gate before test evaluation. Its validation gain of 1.283 points contracts to 0.155 points on the seven-seed test comparison, illustrating why validation selection and formal evidence must remain separate.
+
+After the formal result, WSRStable is evaluated in three additional pre-registered, validation-only engineering rounds. The hard gate requires at least +1.00 AP point, route enrichment of at least 2.0$\times$, and no more than 1.20$\times$ baseline model-only latency. Table~\ref{tab:stable} reports all 11 candidates. Every candidate passes the mechanism check, but none passes all three checks. The largest gain, +1.240 points for P3+P4/12.5\%, costs 1.400$\times$ latency. Under the latency limit, the strongest candidate is P4/12.5\% with residual scale 0.20: +0.652 points, 3.071$\times$ enrichment, and 1.153$\times$ latency.
+
+\begin{table*}[t]
+\centering
+\caption{Complete WSRStable validation-only audit. Gain is relative to the repeated 32.679 AP baseline; ``pass'' requires all three pre-registered checks.}
+\label{tab:stable}
+\scriptsize
+\begin{tabular}{clrrrrc}
+\toprule
+Round & Candidate & $\Delta$AP & Seed wins & Enrichment & Latency & Pass \\
+\midrule
+1 & P3, 12.5\% & +0.532 & 2/3 & 2.832$\times$ & 1.125$\times$ & no \\
+1 & P3, 25\% & +0.587 & 2/3 & 2.239$\times$ & 1.200$\times$ & no \\
+1 & P3+P4, 12.5\% & +1.240 & 3/3 & 3.380$\times$ & 1.400$\times$ & no \\
+2 & P4, 12.5\%, $\beta=0.10$ & +0.359 & 2/3 & 3.497$\times$ & 1.199$\times$ & no \\
+2 & P4, 25\%, $\beta=0.10$ & +0.265 & 2/3 & 2.844$\times$ & 1.153$\times$ & no \\
+2 & P4, 12.5\%, $\beta=0.20$ & +0.652 & 2/3 & 3.071$\times$ & 1.153$\times$ & no \\
+2 & P4, 25\%, $\beta=0.20$ & +0.011 & 2/3 & 2.773$\times$ & 1.195$\times$ & no \\
+3 & P3, 12.5\%, $(\beta_w,\beta_r)=(.35,.10)$ & +0.087 & 1/3 & 2.966$\times$ & 1.190$\times$ & no \\
+3 & P3, 25\%, $(\beta_w,\beta_r)=(.35,.10)$ & +0.566 & 2/3 & 2.355$\times$ & 1.217$\times$ & no \\
+3 & P3, 12.5\%, $(\beta_w,\beta_r)=(.45,.10)$ & +0.021 & 2/3 & 2.968$\times$ & 1.181$\times$ & no \\
+3 & P3, 25\%, $(\beta_w,\beta_r)=(.45,.10)$ & +0.448 & 2/3 & 2.433$\times$ & 1.251$\times$ & no \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\subsection{Mechanism and Efficiency}
+Route recall is the fraction of ground-truth feature pixels selected; enrichment divides recall by the random expectation at the same density. For the seed-13 formal checkpoint, the 25\% route budget recalls 79.11\% of defect pixels on DsPCBSD+ and 88.68\% on DeepPCB, corresponding to 3.16$\times$ and 3.55$\times$ enrichment. Center-hit rates are 86.80\% and 99.76\%. The wave-gate inside/outside means are 0.446/0.453 and 0.481/0.497, respectively, so the dense wave gate alone is not more active inside boxes. The supported mechanism is therefore the combined routing score, not a claim that every internal gate independently localizes defects.
+
+WSR adds 13,342 parameters (approximately 0.14\%) and 0.038 GFLOPs (approximately 0.18\%). Wall-clock behavior is less favorable. On matched RTX 3090 GPUs, batch-one model-only overhead ranges from 3.9\% to 51.5\% across dataset-specific heads and FP16/FP32 measurements; the devices are matched models but not the same physical GPU. The same-GPU WSRStable screens likewise range from 1.125$\times$ to 1.400$\times$ in the first round. We consequently claim arithmetic sparsity, not a universal latency reduction.
+
+\subsection{Conditional Robustness and Frequency Evidence}
+The completed corruption and frequency studies use the DeepPCB seed-13 checkpoint and are auxiliary rather than multi-seed confirmatory tests. Across 40 corruption--severity pairs, WSR has mean AP 46.51 versus 42.68 for YOLO11s and wins 24 conditions. After normalization by each checkpoint's clean AP, retention is 65.6\% versus 64.1\%. Gains concentrate in brightness, contrast, Gaussian noise, and JPEG, while WSR is worse under defocus blur, Poisson noise, and speckle. Robustness is therefore conditional rather than uniform.
+
+Haar counterfactuals further limit a simplistic frequency explanation. Keeping only the low-frequency reconstruction retains 67.43 AP for WSR, whereas keeping only high-frequency content yields 0.95 AP. Removing LH, HL, or HH individually gives 69.57, 70.19, and 69.21 AP. Low-frequency structure is thus essential, while directional details act as routing cues in combination with learned spatial context; no single high-frequency band is sufficient.
 
 \section{Reproducibility and Limitations}
-Formal runs require a clean, resolvable Git commit and a full content-hash dataset audit. Every result stores the split and model seeds, protocol and source hashes, pretrained-transfer coverage, package versions, device, checkpoint hash, prediction hash, and unified-evaluator output; validated result JSONs are then frozen into a tracked registry. Official external repositories are pinned to exact commits. DsPCBSD+ annotations contain sub-pixel boundary rounding; the converter clips only errors below 0.5 pixel and records the count. Public split files lack complete board/lot provenance, so perceptual screening reduces but cannot eliminate group-leakage uncertainty. No claim of state-of-the-art performance or statistical superiority is made until all runs are complete. Haar priors may be less useful for color-dominated defects, top-$k$ selection can miss weak early signals, and sparse indexing may have nontrivial latency despite low arithmetic overhead.
+Formal runs require a clean, resolvable Git commit and a full content-hash dataset audit. Every result stores split and model seeds, protocol and source hashes, pretrained-transfer coverage, package versions, device, checkpoint hash, prediction hash, and unified-evaluator output; validated JSON files are frozen into a tracked registry. Official external repositories are pinned to exact commits. The three WSRStable decisions additionally store all input-result hashes and explicitly record \texttt{test\_evaluated=false}. Automated tests cover top-$k$ budget preservation, unchanged unrouted WSRStable tokens, uniform feature-scale route invariance, asymmetric residual initialization, architecture construction, and pretrained-transfer coverage.
+
+Several limitations constrain interpretation. First, the primary seven-seed effect is small and nonsignificant; the larger DeepPCB effect has only three pairs. Second, the recent-detector table mixes capacities and official optimization recipes and lacks a complete same-device latency matrix. Third, robustness and frequency interventions use one checkpoint and only DeepPCB, so they identify hypotheses rather than population-level effects. Fourth, the stable engineering variants were not evaluated on test after their validation gate failed. Public DsPCBSD+ files also lack complete board/lot provenance; perceptual screening reduces but cannot eliminate group-leakage uncertainty. Finally, top-$k$ selection can miss weak early signals, Haar cues may be less useful for color-dominated defects, and irregular sparse indexing can negate low arithmetic cost on current hardware.
 
 \section{Conclusion}
-WSR turns wavelet cues into a measurable computation-allocation mechanism for tiny PCB defects. Its central hypothesis is falsifiable: at a fixed token budget, learned routes should be enriched inside true defect regions and improve detection or robustness over matched baselines. The accompanying protocol is designed to test that hypothesis without leakage or selective reporting.
+WSR turns fixed wavelet cues into a measurable computation-allocation mechanism for tiny PCB defects. At a 25\% budget, its test-set routes are enriched inside defects by 3.16$\times$ on DsPCBSD+ and 3.55$\times$ on DeepPCB while adding only 13.3K parameters. This mechanism evidence does not translate into a reliable primary accuracy gain: seven paired seeds yield only +0.155 AP points with $p=0.8125$. DeepPCB and validation screens show that larger gains are possible, but they are dataset-dependent or accompanied by latency overhead. Three validation-locked stability rounds reach the same boundary and select no formal candidate. The defensible conclusion is therefore narrower than state of the art: wavelet-conditioned sparse routing can target defect-relevant locations, but effective routing, detection accuracy, and realized efficiency must be evaluated as separate claims.
 
 \begin{thebibliography}{99}
 \bibitem{yolov10} A. Wang et al., ``YOLOv10: Real-Time End-to-End Object Detection,'' in \textit{NeurIPS}, 2024.
@@ -125,8 +214,8 @@ WSR turns wavelet cues into a measurable computation-allocation mechanism for ti
 \bibitem{rtdetrv2} W. Lv et al., ``RT-DETRv2: Improved Baseline with Bag-of-Freebies for Real-Time Detection Transformer,'' arXiv:2407.17140, 2024.
 \bibitem{dfine} Y. Peng et al., ``D-FINE: Redefine Regression Task in DETRs as Fine-grained Distribution Refinement,'' in \textit{ICLR}, 2025.
 \bibitem{deim} S. Huang et al., ``DEIM: DETR with Improved Matching for Fast Convergence,'' in \textit{CVPR}, 2025.
-\bibitem{rfdetr} I. Robinson, P. Robicheaux, M. Popov, D. Ramanan, and N. Peri, ``RF-DETR: Neural Architecture Search for Real-Time Detection Transformers,'' arXiv:2511.09554, 2025.
-\bibitem{rtdetrv4} ``RT-DETRv4: Painlessly Furthering Real-Time Object Detection with Vision Foundation Models,'' in \textit{ECCV}, 2026. [Online]. Available: \url{https://github.com/RT-DETRs/RT-DETRv4}
+\bibitem{rfdetr} I. Robinson, P. Robicheaux, M. Popov, D. Ramanan, and N. Peri, ``RF-DETR: Neural Architecture Search for Real-Time Detection Transformers,'' in \textit{ICLR}, 2026, arXiv:2511.09554.
+\bibitem{rtdetrv4} Z. Liao, Y. Zhao, X. Shan, et al., ``RT-DETRv4: Painlessly Furthering Real-Time Object Detection with Vision Foundation Models,'' in \textit{ECCV}, 2026, arXiv:2510.25257.
 \bibitem{wavecnet} Q. Li et al., ``WaveCNet: Wavelet Integrated CNNs to Suppress Aliasing Effect for Noise-Robust Image Classification,'' \textit{IEEE TIP}, 2021.
 \bibitem{fcanet} Z. Qin et al., ``FcaNet: Frequency Channel Attention Networks,'' in \textit{ICCV}, 2021.
 \bibitem{hwanet} B. Jin et al., ``HWANet: A Haar Wavelet-Based Attention Network for Remote Sensing Object Detection,'' \textit{PLOS ONE}, 2025.
