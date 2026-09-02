@@ -3,7 +3,7 @@
 This repository contains the paper, implementation, experiment protocol, and frozen audit artifacts for **Wavelet Conditioned Sparse Routing for PCB Defect Detection**.
 
 > [!IMPORTANT]
-> The formal paper evidence is produced exclusively by the audited WSR track in [`experiment/paper_b/`](experiment/paper_b/). This directory is the current paper's reproducibility package, not a legacy experiment.
+> The formal paper evidence is produced exclusively by the audited WSR track in [`experiment/wsr/`](experiment/wsr/). This directory is the current paper's reproducibility package, not a legacy experiment.
 
 ## Overview
 
@@ -31,10 +31,10 @@ These results support WSR as an auditable routing probe, not as a reliable accur
 
 - English paper source: [`paper/main.tex`](paper/main.tex)
 - Chinese translation source: [`paper/main_zh.tex`](paper/main_zh.tex)
-- Audited experiment guide: [`experiment/paper_b/README.md`](experiment/paper_b/README.md)
-- Current experiment status: [`experiment/paper_b/STATUS.md`](experiment/paper_b/STATUS.md)
-- Frozen formal results: [`experiment/paper_b/frozen_results/`](experiment/paper_b/frozen_results/)
-- Tests: [`experiment/paper_b/tests/`](experiment/paper_b/tests/)
+- Audited experiment guide: [`experiment/wsr/README.md`](experiment/wsr/README.md)
+- Current experiment status: [`experiment/wsr/STATUS.md`](experiment/wsr/STATUS.md)
+- Frozen formal results: [`experiment/wsr/frozen_results/`](experiment/wsr/frozen_results/)
+- Tests: [`experiment/wsr/tests/`](experiment/wsr/tests/)
 
 ## Repository Structure
 
@@ -42,7 +42,7 @@ These results support WSR as an auditable routing probe, not as a reliable accur
 .
 |-- algorithm/                     # WSR and false-alarm refinement modules
 |-- experiment/
-|   |-- paper_b/                   # Audited protocol used by the current paper
+|   |-- wsr/       # Audited protocol used by the current paper
 |   `-- configs/                   # Current WSR model and dataset configurations
 |-- paper/                         # IEEE LaTeX sources, figures, and generated documents
 `-- requirements.txt
@@ -72,9 +72,9 @@ python -c "from algorithm.register import register_custom_modules; register_cust
 There are two reproduction levels. Rebuilding the reported statistics uses the committed frozen results and does not require a GPU or dataset:
 
 ```bash
-python -m experiment.paper_b.stats \
-  --root experiment/paper_b/frozen_results \
-  --output experiment/paper_b/generated/tables
+python -m experiment.wsr.stats \
+  --root experiment/wsr/frozen_results \
+  --output experiment/wsr/generated/tables
 ```
 
 Full retraining requires the official datasets and a CUDA GPU. Run the following steps from the repository root.
@@ -84,10 +84,10 @@ Full retraining requires the official datasets and a CUDA GPU. Run the following
 `prepare_dspcbsd` downloads and converts the official DsPCBSD+ release. Place DeepPCB under `datasets/DeepPCB` before preparing its fixed split.
 
 ```bash
-python -m experiment.paper_b.prepare_dspcbsd
-python -m experiment.paper_b.run prepare --dataset dspcbsd_plus --coco
-python -m experiment.paper_b.run prepare --dataset deeppcb --coco
-python -m experiment.paper_b.run audit
+python -m experiment.wsr.prepare_dspcbsd
+python -m experiment.wsr.run prepare --dataset dspcbsd_plus --coco
+python -m experiment.wsr.run prepare --dataset deeppcb --coco
+python -m experiment.wsr.run audit
 ```
 
 The audit must complete without fatal annotation, exact-duplicate, or split-integrity findings.
@@ -95,12 +95,12 @@ The audit must complete without fatal annotation, exact-duplicate, or split-inte
 ### 2. Freeze Validation-Only Model Selection
 
 ```bash
-python -m experiment.paper_b.pilot plan
-python -m experiment.paper_b.pilot train --device 0
-python -m experiment.paper_b.pilot diagnose --device 0
-python -m experiment.paper_b.pilot benchmark --device 0
-python -m experiment.paper_b.pilot evaluate
-python -m experiment.paper_b.pilot freeze
+python -m experiment.wsr.pilot plan
+python -m experiment.wsr.pilot train --device 0
+python -m experiment.wsr.pilot diagnose --device 0
+python -m experiment.wsr.pilot benchmark --device 0
+python -m experiment.wsr.pilot evaluate
+python -m experiment.wsr.pilot freeze
 ```
 
 This stage uses only validation data. Commit the resulting selection decision before starting formal runs.
@@ -108,18 +108,18 @@ This stage uses only validation data. Commit the resulting selection decision be
 ### 3. Inspect and Run the Registered Controlled Matrix
 
 ```bash
-python -m experiment.paper_b.run plan
+python -m experiment.wsr.run plan
 
 # Primary DsPCBSD+ experiment: seven paired seeds and two architectures.
 for seed in 13 42 3407 4703 8391 9475 10501; do
-  python -m experiment.paper_b.run train --dataset dspcbsd_plus --model yolo11s --seed "$seed" --device 0
-  python -m experiment.paper_b.run train --dataset dspcbsd_plus --model wsr_yolo11s_p3_r25 --seed "$seed" --device 0
+  python -m experiment.wsr.run train --dataset dspcbsd_plus --model yolo11s --seed "$seed" --device 0
+  python -m experiment.wsr.run train --dataset dspcbsd_plus --model wsr_yolo11s_p3_r25 --seed "$seed" --device 0
 done
 
 # Descriptive DeepPCB experiment: three paired seeds and two architectures.
 for seed in 13 42 3407; do
-  python -m experiment.paper_b.run train --dataset deeppcb --model yolo11s --seed "$seed" --device 0
-  python -m experiment.paper_b.run train --dataset deeppcb --model wsr_yolo11s_p3_r25 --seed "$seed" --device 0
+  python -m experiment.wsr.run train --dataset deeppcb --model yolo11s --seed "$seed" --device 0
+  python -m experiment.wsr.run train --dataset deeppcb --model wsr_yolo11s_p3_r25 --seed "$seed" --device 0
 done
 ```
 
@@ -130,16 +130,16 @@ Formal runs require a clean, resolvable Git commit, a successful full-data audit
 ### 4. Freeze Results and Rebuild Statistical Tables
 
 ```bash
-python -m experiment.paper_b.freeze_results \
-  --root experiment/paper_b/generated/runs \
-  --output experiment/paper_b/frozen_results
+python -m experiment.wsr.freeze_results \
+  --root experiment/wsr/generated/runs \
+  --output experiment/wsr/frozen_results
 
-python -m experiment.paper_b.stats \
-  --root experiment/paper_b/frozen_results \
-  --output experiment/paper_b/generated/tables
+python -m experiment.wsr.stats \
+  --root experiment/wsr/frozen_results \
+  --output experiment/wsr/generated/tables
 ```
 
-Controlled run outputs are stored under `experiment/paper_b/generated/runs/controlled/<dataset>/<model>/seed_<seed>/`. The [complete reproduction guide](experiment/paper_b/README.md) documents validation-only ablations, official recent-detector environments, latency measurement, mechanism diagnostics, corruptions, cross-domain evaluation, negative-template mitigation, and operating-point analysis.
+Controlled run outputs are stored under `experiment/wsr/generated/runs/controlled/<dataset>/<model>/seed_<seed>/`. The [complete reproduction guide](experiment/wsr/README.md) documents validation-only ablations, official recent-detector environments, latency measurement, mechanism diagnostics, corruptions, cross-domain evaluation, negative-template mitigation, and operating-point analysis.
 
 ## Evaluation Principles
 
@@ -153,7 +153,7 @@ Controlled run outputs are stored under `experiment/paper_b/generated/runs/contr
 ## Tests
 
 ```bash
-python -m pytest experiment/paper_b/tests -q
+python -m pytest experiment/wsr/tests -q
 ```
 
 The cleaned repository passes all 43 protocol and inference tests.
