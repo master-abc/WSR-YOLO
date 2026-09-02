@@ -1,33 +1,33 @@
-# CCF-B 目标实验轨道
+# Audited Paper Experiment Track
 
-这套代码把原来的“单次 smoke test + 空表格”重构为可审计、可复现的论文实验协议。它不会保证论文一定录用，也不会在训练完成前制造 SOTA 结论。版本化论文源码是 `paper/main.tex`；工作区上层的 `main_ccfb.tex` 只是便于原路径编译的包装文件。
+This track replaces the original "single smoke test plus empty tables" workflow with an auditable and reproducible paper protocol. It does not guarantee paper acceptance or manufacture state-of-the-art claims before training is complete. The versioned paper source is [`../../paper/main.tex`](../../paper/main.tex).
 
-当前完成度、阻断项和投稿门槛见 [`STATUS.md`](STATUS.md)。运行本轨道前安装独立依赖：
+See [`STATUS.md`](STATUS.md) for completion status, blocking items, and submission gates. Install the track-specific dependencies before running the workflow:
 
 ```powershell
 pip install -r experiment\paper_b\requirements-paper-b.txt
 ```
 
-## 核心研究问题
+## Core Research Questions
 
-新方法称为 Wavelet-Conditioned Top-k Sparse Routing（WSR）。与旧版 soft mask 不同，WSR 只 gather 排名前 `rho * H * W` 的 P3 token，执行 LayerNorm+MLP 后 scatter 回原特征图，因此精炼算子的计算量随 `rho` 线性变化。默认 `rho=12.5%`。
+The proposed module is Wavelet-Conditioned Top-k Sparse Routing (WSR). Unlike the earlier soft mask, WSR gathers only the top `rho * H * W` P3 tokens, applies LayerNorm plus an MLP, and scatters them back to the original feature map. The refinement operator therefore scales linearly with `rho`; the default routing budget is `rho=12.5%`.
 
-论文需要同时回答三个问题：
+The paper addresses three primary questions:
 
-1. 同一 YOLO11s 训练预算下，WSR 是否稳定优于基线？
-2. 与 2024--2026 年公开可运行检测器相比，精度、延迟和模型规模是否有竞争力？
-3. 路由是否真的集中于缺陷，而不是仅产生一张好看的注意力图？
+1. Does WSR consistently outperform the baseline under the same YOLO11s training budget?
+2. Is it competitive in accuracy, latency, and model size against runnable detectors released from 2024 to 2026?
+3. Does routing concentrate on defects rather than merely produce an attractive attention map?
 
-## 数据协议
+## Data Protocol
 
-| 数据集 | train | val | test | 用途 |
+| Dataset | Train | Validation | Test | Role |
 |---|---:|---:|---:|---|
-| DsPCBSD+ | 7,387 | 821 | 2,051 | 主工业数据集；官方 val 锁定为最终 test |
-| DeepPCB | 850 | 150 | 500 | 经典基准、鲁棒性和跨域实验 |
-| DefectDet | 188 | 40 | 40 | 仅探索；缺少 sequence/template 分组，正式轨道默认禁用 |
-| PCB-IND | 待官方数据 | 待按板级分组 | 待锁定 | 2026 外部工业验证；默认禁用 |
+| DsPCBSD+ | 7,387 | 821 | 2,051 | Primary industrial dataset; the official validation split is locked as the final test set |
+| DeepPCB | 850 | 150 | 500 | Classical benchmark, robustness analysis, and cross-domain experiments |
+| DefectDet | 188 | 40 | 40 | Exploratory only; disabled by default because sequence/template groups are unavailable |
+| PCB-IND | Pending official data | Pending board-level grouping | Pending lock | External 2026 industrial validation; disabled by default |
 
-数据划分种子固定为 2026，与模型种子分离。感知审计显示公开 PCB 数据中存在相似板图候选，但没有发现跨划分 SHA-256 精确重复；由于原始发布未提供完整 board/lot ID，本项目只能声称“已审计并披露”，不能声称已证明板级独立。本地 `PKU_PCB` 的框几乎全部是 `0.5 0.5 0.8 0.8` 伪框，审计会拒绝它。PCB-IND 只有在取得官方数据、确认许可并能按 board/lot 分组后才启用，不能用随机图像划分占位。
+The data-split seed is fixed at 2026 and is separate from the model seeds. Perceptual auditing identifies visually similar board candidates in public PCB datasets but no exact cross-split SHA-256 duplicates. Because the original releases do not provide complete board or lot identifiers, this repository claims that the risk was audited and disclosed, not that board-level independence was proven. The local `PKU_PCB` boxes are almost all placeholder-like `0.5 0.5 0.8 0.8` boxes, so the audit rejects that dataset. PCB-IND must not be enabled until the official data and license are available and a board- or lot-grouped split can be established.
 
 ```powershell
 cd DWGSA-YOLO
@@ -37,9 +37,9 @@ python -m experiment.paper_b.run prepare --dataset deeppcb --coco
 python -m experiment.paper_b.run audit
 ```
 
-## 正确的运行顺序
+## Required Execution Order
 
-### 1. 只在验证集完成 pilot、消融和结构选择
+### 1. Complete Pilot Selection and Ablation on Validation Data Only
 
 ```powershell
 python -m experiment.paper_b.pilot plan
@@ -49,14 +49,14 @@ python -m experiment.paper_b.pilot benchmark --device 0
 python -m experiment.paper_b.pilot evaluate
 python -m experiment.paper_b.pilot freeze
 
-# 完整论文消融仍只使用 val
+# The full paper ablation remains validation-only.
 python -m experiment.paper_b.ablation materialize
 python -m experiment.paper_b.ablation train --variant route_p3_12p5 --seed 13 --device 0
 ```
 
-pilot 对 YOLO11s 验证集基线和 P3/12.5% 候选各运行种子 13、42、3407，并在 `val` 上自动检查平均 AP50:95 增益、路由富集和同硬件延迟。两者都使用固定 35% 训练子集、30 epoch 上限和完整验证集；只有三项全部通过，`freeze` 才会写出可提交 Git 的选择决策。完整消融也只评价 `val`，绝不读取 test。
+The pilot runs the YOLO11s validation baseline and the P3/12.5% candidate with seeds 13, 42, and 3407. It checks mean AP50:95 gain, route enrichment, and same-hardware latency on the validation set. Both models use a fixed 35% training subset, a 30-epoch limit, and the complete validation split. `freeze` records a selection decision only if all three gates pass. The full component ablation also evaluates validation data only and never reads the test set.
 
-### 2. 同架构控制主实验
+### 2. Run the Same-Architecture Controlled Experiment
 
 ```powershell
 python -m experiment.paper_b.run plan
@@ -64,13 +64,13 @@ python -m experiment.paper_b.run train --dataset dspcbsd_plus --model yolo11s --
 python -m experiment.paper_b.run train --dataset dspcbsd_plus --model wsr_yolo11s_p3_r25 --seed 13 --device 0
 ```
 
-基线和本文方法使用七个配对种子：13、42、3407、4703、8391、9475、10501。七对使精确双侧 Wilcoxon 检验有可能达到 `p<0.05`；五对时理论最小 p 值为 0.0625。中断后可加 `--resume`，已存在标准结果时默认跳过。
+The baseline and proposed model use seven paired seeds: 13, 42, 3407, 4703, 8391, 9475, and 10501. Seven pairs allow an exact two-sided Wilcoxon test to reach `p<0.05`; with five pairs, the theoretical minimum p-value is 0.0625. Add `--resume` after an interruption. A run with an existing standardized result is skipped by default.
 
-正式运行前必须先提交当前代码，使 Git 工作区保持干净，并完成包含 SHA-256 与感知近重复检查的全量数据审计。WSR 插入 P3 后会改变后续 Ultralytics 层号，脚本会显式重映射 YOLO11s 预训练参数；若目标参数覆盖率低于 99%，训练立即拒绝启动。正式协议为最多 80 epoch、`batch=8, nbs=64`、patience 15；不得只给 WSR 单独降低分辨率或训练预算。实测依据见 [`COMPUTE_BUDGET.md`](COMPUTE_BUDGET.md)。
+Before a formal run, commit the current code, keep the Git worktree clean, and complete the full data audit with SHA-256 and perceptual near-duplicate checks. Inserting WSR at P3 changes later Ultralytics layer indices, so the scripts explicitly remap pretrained YOLO11s parameters. Training is rejected when target-parameter coverage is below 99%. The formal budget is at most 80 epochs with `batch=8`, `nbs=64`, and patience 15. WSR must not receive a uniquely reduced resolution or training budget. See [`COMPUTE_BUDGET.md`](COMPUTE_BUDGET.md) for measured cost estimates.
 
-### 3. 近期 SOTA 轨道
+### 3. Run the Recent-Detector Comparison Track
 
-主表只接收官方可运行实现：YOLOv10-M、YOLO11-M、YOLOv12-M、YOLO26-M、RF-DETR-M、RT-DETRv2-S、D-FINE-M 和 DEIM-D-FINE-M。RT-DETRv4 依赖 DINOv3 教师且 DEIMv2 训练成本较高，先列为延后可运行项；资源允许时再补，不能用论文报告值冒充本地同划分重训。PCB-MMF、PCB-FS、Structure-Guided PCB Detection、UniPCB、SCP-DETR 和 LSDM-PCB 仅进入独立的领域方法表，并清楚标注数据、划分和“reported only”。
+The main table accepts only runnable official implementations: YOLOv10-M, YOLO11-M, YOLOv12-M, YOLO26-M, RF-DETR-M, RT-DETRv2-S, D-FINE-M, and DEIM-D-FINE-M. RT-DETRv4 depends on a DINOv3 teacher, and DEIMv2 has a high training cost, so both remain deferred runnable entries. PCB-MMF, PCB-FS, Structure-Guided PCB Detection, UniPCB, SCP-DETR, and LSDM-PCB appear only in a separate domain-method table with their dataset, split, and `reported only` status clearly identified.
 
 ```powershell
 python -m experiment.paper_b.run prepare --dataset dspcbsd_plus --coco
@@ -78,37 +78,41 @@ python -m experiment.paper_b.external bootstrap --repos-root D:\paper_b_repos
 python -m experiment.paper_b.external materialize --dataset dspcbsd_plus --repos-root D:\paper_b_repos --device 0
 ```
 
-每个官方仓库应使用独立环境。生成的 `commands.ps1` 不会自动选择测试权重：必须按验证集选择 checkpoint，再手动替换 `<BEST_VALIDATION_CHECKPOINT>` 执行一次 test-only，禁止按 test AP 选权重。
+Use a separate environment for each official repository. The generated `commands.ps1` never selects a test checkpoint automatically. Select a checkpoint on validation data, replace `<BEST_VALIDATION_CHECKPOINT>`, and then perform exactly one test-only evaluation. Never select weights by test AP.
 
-所有框架必须先导出原始 COCO detection JSON，再统一由 `pycocotools.COCOeval` 计算 AP；禁止从 DETR 日志手工抄 AP。官方 COCO 汇总采用每图最多 100 个检测，导出阶段可保留 300 个候选。单点 precision/recall/F1 没有预注册的验证集阈值，因此不进入主表。
+Every framework must export raw COCO detection JSON before the shared `pycocotools.COCOeval` evaluator computes AP. Do not transcribe AP manually from detector logs. Official COCO summaries use at most 100 detections per image; the export stage may retain 300 candidates. Single-point precision, recall, and F1 are excluded from the main table because no validation threshold was preregistered.
 
-### 4. 机制、鲁棒性和迁移实验
+### 4. Run Mechanism, Robustness, and Transfer Experiments
 
 ```powershell
-# 路由是否富集在真实框内
+# Measure whether routes are enriched inside ground-truth boxes.
 python -m experiment.paper_b.mechanism_diagnostics --weights PATH\best.pt --data experiment\paper_b\generated\datasets\deeppcb\dataset.yaml --output route.json
 
-# 八类退化、五档强度；建议先用 DeepPCB 控制存储量
+# Generate eight corruption families at five severity levels.
 python -m experiment.paper_b.corruptions experiment\paper_b\generated\datasets\deeppcb\dataset.yaml experiment\paper_b\generated\robustness\deeppcb
 
-# LL/HF/方向子带像素级反事实
+# Generate pixel-level LL, high-frequency, and directional-subband interventions.
 python -m experiment.paper_b.frequency_interventions experiment\paper_b\generated\datasets\deeppcb\dataset.yaml experiment\paper_b\generated\frequency\deeppcb
 
-# 用同一冻结权重评测上述目录
+# Evaluate generated suites with one frozen checkpoint.
 python -m experiment.paper_b.evaluate_suite --weights PATH\best.pt --suite-root experiment\paper_b\generated\frequency\deeppcb --output frequency_result.json --model wsr_yolo11s_p3_r25 --dataset deeppcb --seed 13
 
-# 少样本曲线
+# Generate few-shot subsets.
 python -m experiment.paper_b.few_shot experiment\paper_b\generated\datasets\dspcbsd_plus\dataset.yaml experiment\paper_b\generated\few_shot\dspcbsd_plus
 
-# 共享五类上的真正零样本跨域
+# Build a genuine zero-shot cross-domain pair over five shared classes.
 python -m experiment.paper_b.cross_domain remap experiment\paper_b\generated\datasets\deeppcb\dataset.yaml experiment\paper_b\generated\cross_domain\deeppcb_common5
 python -m experiment.paper_b.cross_domain remap experiment\paper_b\generated\datasets\dspcbsd_plus\dataset.yaml experiment\paper_b\generated\cross_domain\dspcbsd_common5
 python -m experiment.paper_b.cross_domain pair experiment\paper_b\generated\cross_domain\deeppcb_common5\dataset.yaml experiment\paper_b\generated\cross_domain\dspcbsd_common5\dataset.yaml experiment\paper_b\generated\cross_domain\deep_to_dsp
 ```
 
-若重新取得 DeepPCB 官方 template 图像，可用 `false_positive.py` 报告 defect-free board FPR 和 FPPI。只有人工确认全部输入均无缺陷时，该指标才有效。
+If the official DeepPCB template images are restored, `false_positive.py` can report defect-free board FPR and FPPI. These metrics are valid only after manual confirmation that every input is defect-free.
 
-误报缓解实验必须把官方 test template 与训练、阈值选择隔离。`restore_deeppcb_split.py` 从官方发布恢复论文冻结的 850/150/500 划分；`negative_aware.py prepare` 为训练和验证目标加入对应的无缺陷 template 空标注样本，同时只导出、绝不训练 500 张 test template。第一阶段在种子 13 验证集选择 25% 训练负模板并固定到其他种子；第二阶段从第一阶段 checkpoint 出发，使用全部 850 张训练负模板继续微调 3 epoch；第三阶段由种子 13 的训练负模板分数固定最高 25% 难例并重复三次，再对三个 Stage-2 checkpoint 使用相同的 3 epoch、`lr0=1e-4` 方案。三个阶段都使用“正样本 + 无缺陷样本”验证集选择 checkpoint。它们属于额外训练数据与计算开销下的事后缓解实验，不能替换或覆写原始正式结果。
+#### Negative-Aware Mitigation
+
+False-alarm mitigation must isolate official test templates from training and threshold selection. `restore_deeppcb_split.py` restores the frozen 850/150/500 split from the official release. `negative_aware.py prepare` adds corresponding defect-free templates with empty annotations to training and validation while exporting, but never training on, the 500 test templates.
+
+Stage 1 uses seed 13 validation data to select a 25% fraction of training negatives and freezes that choice for the other seeds. Stage 2 starts from each Stage-1 checkpoint, adds all 850 training templates, and fine-tunes for three epochs. Stage 3 uses seed 13 training-template scores to freeze the hardest 25% and repeats those examples three times, then applies the same three-epoch `lr0=1e-4` recipe to all three Stage-2 checkpoints. Every stage selects checkpoints on a combined positive-plus-defect-free validation set. These are post-hoc mitigation experiments with additional data and compute; they do not replace the original formal results.
 
 ```powershell
 python -m experiment.paper_b.negative_aware prepare `
@@ -124,7 +128,7 @@ python -m experiment.paper_b.negative_aware train `
   --positive-test-annotations experiment\paper_b\generated\coco\deeppcb\annotations\instances_test.json `
   --positive-test-images experiment\paper_b\generated\coco\deeppcb\test
 
-# 第二阶段：方案只在 seed 13 验证集确定，随后对每个种子原样复现
+# Stage 2: choose the recipe on seed 13 validation data, then reproduce it unchanged.
 python experiment\paper_b\negative_aware.py prepare `
   --base-data experiment\paper_b\generated\negative_aware_local\base\dataset.yaml `
   --template-list experiment\paper_b\generated\negative_aware_local\base\templates.txt `
@@ -137,7 +141,7 @@ python experiment\paper_b\negative_aware.py finetune `
   --output experiment\paper_b\generated\negative_aware_local\runs\stage2_frac100_seed13 `
   --seed 13 --epochs 3 --lr0 0.0003 --batch 8 --workers 4 --device 0
 
-# 第三阶段：难负样本排名只读训练模板；三个种子必须复用同一个输出数据集
+# Stage 3: rank training templates only and reuse one frozen hard-negative dataset.
 python experiment\paper_b\prepare_hard_negatives.py `
   --base-data experiment\paper_b\generated\negative_aware_local\frac100\dataset.yaml `
   --negative-audit experiment\paper_b\generated\negative_aware_local\stage2_seed13_negative_train.json `
@@ -151,9 +155,11 @@ python experiment\paper_b\negative_aware.py finetune `
   --seed 13 --epochs 3 --lr0 0.0001 --batch 8 --workers 4 --device 0
 ```
 
-对部署工作点，`operating_point.py` 从显式独立的 150 张验证 template 中选择达到给定板级误报上限的全局阈值，再在隔离的 500 张 test template 和正样本 test 上一次性评估；若校准池与 holdout 有部分重叠，脚本会直接拒绝运行。`positive_operating_point.py` 则只用正样本验证集选择逐类别 F1/F-beta 阈值。`aggregate_mitigation.py` 和 `aggregate_operating_points.py` 分别汇总固定阈值与校准阈值的多种子结果。两类结果均须标为 operating-point 或 post-hoc mitigation，不能与阈值无关的 COCO AP 主表混写。
+#### Operating Points and Consensus
 
-`consensus_ensemble.py` 把三 checkpoint 一致性策略严格拆成 `select` 与 `evaluate`：前者只能读取验证预测并冻结策略 JSON，后者读取该 JSON 后才允许处理测试预测。当前探索性策略要求三个模型给出同类框、各框与共同锚框的 IoU≥0.3，且置信度均≥0.65；它在 500 张测试模板上得到 0.6% 板级误报率和 0.813 召回。由于该方法族是在查看单模型测试表现后增加的，结果 JSON 会保留 protocol-adaptation 警告；不能在没有全新 holdout 的情况下将其表述为确认性或生产部署结果。
+For deployment operating points, `operating_point.py` selects a global threshold on an explicitly separate pool of 150 validation templates and evaluates it once on the isolated 500 test templates and positive test images. The script rejects overlapping calibration and holdout pools. `positive_operating_point.py` selects per-class F1 or F-beta thresholds from positive validation data only. `aggregate_mitigation.py` and `aggregate_operating_points.py` summarize multi-seed fixed-threshold and calibrated-threshold results. These results must be labeled as operating-point or post-hoc mitigation evidence and kept separate from threshold-independent COCO AP.
+
+`consensus_ensemble.py` strictly separates `select` and `evaluate`. Selection reads validation predictions and freezes a policy JSON; evaluation may process test predictions only after that policy exists. The current exploratory policy requires three models to emit same-class boxes, each with IoU at least 0.3 to a common anchor and confidence at least 0.65. It produces 0.6% board FPR and 0.813 recall on 500 test templates. Because this method family was introduced after observing single-model test behavior, its JSON retains a protocol-adaptation warning and the result is not confirmatory or production-ready without a new holdout.
 
 ```powershell
 python experiment\paper_b\consensus_ensemble.py select `
@@ -169,7 +175,7 @@ python experiment\paper_b\consensus_ensemble.py evaluate `
   --output PATH\consensus_test.json
 ```
 
-DsPCBSD+ 没有独立无缺陷板，因此只能针对正样本图中的误检做事后处理。`validation_postprocess.py` 在验证集网格中联合选择逐类 F-beta 阈值和同类/跨类重叠框抑制，再固定到测试预测；它同时输出最大 F1 和召回约束策略、完整候选网格及输入哈希。结果必须与共同阈值 0.25 的正式比较分开报告。
+DsPCBSD+ does not contain independent defect-free boards, so only false detections within positive images can be post-processed. `validation_postprocess.py` jointly selects per-class F-beta thresholds and same-/cross-class overlap suppression from a validation grid, then freezes the policy for test predictions. It reports maximum-F1 and recall-constrained policies, the complete candidate grid, and input hashes. Report these results separately from the common-threshold formal comparison.
 
 ```powershell
 python experiment\paper_b\validation_postprocess.py `
@@ -180,7 +186,7 @@ python experiment\paper_b\validation_postprocess.py `
   --output PATH\dspcbsd_wsr_seed13_postprocess.json
 ```
 
-### 5. 效率与统计
+### 5. Measure Efficiency and Aggregate Statistics
 
 ```powershell
 python -m experiment.paper_b.benchmark --weights PATH\best.pt --data experiment\paper_b\generated\datasets\deeppcb\dataset.yaml --output speed_fp16.json --half
@@ -188,16 +194,16 @@ python -m experiment.paper_b.freeze_results --root experiment\paper_b\generated\
 python -m experiment.paper_b.stats --root experiment\paper_b\frozen_results --output experiment\paper_b\generated\tables
 ```
 
-统计脚本输出 CSV、Markdown、LaTeX、95% t 区间、配对 Wilcoxon、Holm 校正和配对 Cohen's dz。`paper/main.tex` 只读取自动生成的 LaTeX 表，避免手工抄错数字。
+The statistics tool writes CSV, Markdown, and LaTeX outputs with 95% t intervals, paired Wilcoxon tests, Holm correction, and paired Cohen's dz. `paper/main.tex` reads generated LaTeX tables to avoid manual transcription errors.
 
-## 投稿前硬性检查
+## Mandatory Pre-Submission Checks
 
-- 主结果至少完成 DsPCBSD+ 的 7 对控制实验和 3 次 SOTA 重复；
-- 不把不同划分、分辨率或论文报告值混进同一排名；
-- 消融不使用测试集选择结构；
-- 同时报告 AP50:95、AP75、逐类 AP、方差、区间、延迟和显存；
-- 所有主表结果来自同一个 COCOeval，保留预测 JSON 哈希，且预训练参数覆盖率不低于 99%；
-- 正式结果只能从干净 Git 提交运行，并通过 `freeze_results` 固化到可追踪目录；
-- 频域反事实与路由富集必须支持方法机制，否则收缩论文主张；
-- 所有可视化必须来自训练后的冻结 checkpoint；
-- 未跑出的数字保持空白，绝不写“state of the art”。
+- Complete at least seven paired controlled DsPCBSD+ runs and three repeats for each recent-detector comparison.
+- Never mix different splits, resolutions, evaluators, or paper-reported values in one ranking.
+- Do not select ablation structures on the test set.
+- Report AP50:95, AP75, per-class AP, variance, intervals, latency, and peak memory.
+- Generate every main-table result with the same COCOeval implementation, preserve prediction JSON hashes, and require at least 99% pretrained-parameter coverage.
+- Run formal experiments only from a clean Git commit and freeze results into a traceable directory with `freeze_results`.
+- Reduce the paper's mechanism claims if frequency counterfactuals and route enrichment do not support them.
+- Generate every visualization from a trained, frozen checkpoint.
+- Leave unfinished values blank; never write "state of the art" before the evidence exists.
