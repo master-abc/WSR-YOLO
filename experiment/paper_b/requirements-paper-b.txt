@@ -1,9 +1,0 @@
-numpy>=1.26,<3
-Pillow>=10
-PyYAML>=6
-opencv-python>=4.10
-scipy>=1.14
-gdown>=5.2
-pycocotools>=2.0.10
-torch>=2.2
-ultralytics>=8.3

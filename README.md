@@ -3,7 +3,7 @@
 This repository contains the paper, implementation, experiment protocol, and frozen audit artifacts for **Wavelet Conditioned Sparse Routing for PCB Defect Detection**.
 
 > [!IMPORTANT]
-> The formal paper evidence is produced exclusively by the audited WSR track in [`experiment/paper_b/`](experiment/paper_b/). Preliminary experiments under `experiment/exp1`--`experiment/exp5` are archived for traceability and must not be used to support the current paper's conclusions.
+> The formal paper evidence is produced exclusively by the audited WSR track in [`experiment/paper_b/`](experiment/paper_b/). This directory is the current paper's reproducibility package, not a legacy experiment.
 
 ## Overview
 
@@ -40,16 +40,12 @@ These results support WSR as an auditable routing probe, not as a reliable accur
 
 ```text
 .
-|-- algorithm/                     # WSR, archived prototypes, and comparison modules
+|-- algorithm/                     # WSR and false-alarm refinement modules
 |-- experiment/
 |   |-- paper_b/                   # Audited protocol used by the current paper
-|   |-- configs/                   # Model and dataset configurations
-|   |-- exp1/ ... exp5/            # Archived preliminary experiments
-|   `-- scripts/                   # Supporting evaluation and visualization tools
+|   `-- configs/                   # Current WSR model and dataset configurations
 |-- paper/                         # IEEE LaTeX sources, figures, and generated documents
-|-- tests/                         # Repository-level tests
-|-- requirements.txt
-`-- run_all.py
+`-- requirements.txt
 ```
 
 ## Installation
@@ -62,7 +58,6 @@ conda activate wsr-yolo
 
 pip install torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cu121
 pip install -r requirements.txt
-pip install -r experiment/paper_b/requirements-paper-b.txt
 ```
 
 Verify the custom-module registration:
@@ -161,11 +156,7 @@ Controlled run outputs are stored under `experiment/paper_b/generated/runs/contr
 python -m pytest experiment/paper_b/tests -q
 ```
 
-The last verified test run completed with 43 passed tests and one skipped test.
-
-## Archived Preliminary Experiments
-
-Earlier exploratory code remains under `experiment/exp1`--`experiment/exp5`, with an overview in [`experiment/README_experiments.md`](experiment/README_experiments.md). It is retained only for implementation history. Its datasets, model scale, evaluation assumptions, and claims differ from the frozen WSR paper protocol.
+The cleaned repository passes all 43 protocol and inference tests.
 
 ## Citation
 

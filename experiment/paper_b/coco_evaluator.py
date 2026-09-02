@@ -36,7 +36,7 @@ def load_coco_api():
         from pycocotools.cocoeval import COCOeval
     except ImportError as exc:
         raise RuntimeError(
-            "Unified evaluation requires pycocotools. Install requirements-paper-b.txt."
+            "Unified evaluation requires pycocotools. Install the root requirements.txt."
         ) from exc
     return COCO, COCOeval
 

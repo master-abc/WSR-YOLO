@@ -1,41 +1,21 @@
-"""DWGSA-YOLO Algorithm Package."""
+"""WSR-YOLO algorithm package."""
 
-from algorithm.fdsa import (
-    FDSA, FDSAFreqOnly, FDSASpatOnly, FDSANoGate, FDSANoFreqLearn,
-    EMA, SimAM,
-)
-from algorithm.cbam import CBAM
-from algorithm.coordatt import CoordAtt
+from algorithm.asymmetric_loss import AsymmetricFocalBCE
 from algorithm.dwgsa import (
-    DWGSA, DWGSAWaveOnly, DWGSASparseOnly,
-    DWGSANoGeoPrior, DWGSANoAdaptive, DWGSASingleLevel,
-    DWGSARouter, WSR, WSRStable, MatchedConvResidual, ScaleOnlyControl,
+    DWGSARouter,
+    MatchedConvResidual,
+    ScaleOnlyControl,
+    WSR,
+    WSRStable,
 )
 from algorithm.register import register_custom_modules
 
 __all__ = [
-    # DWGSA (proposed)
-    "DWGSA",
-    "DWGSAWaveOnly",
-    "DWGSASparseOnly",
-    "DWGSANoGeoPrior",
-    "DWGSANoAdaptive",
-    "DWGSASingleLevel",
+    "AsymmetricFocalBCE",
     "DWGSARouter",
     "WSR",
     "WSRStable",
     "MatchedConvResidual",
     "ScaleOnlyControl",
-    # FDSA (previous)
-    "FDSA",
-    "FDSAFreqOnly",
-    "FDSASpatOnly",
-    "FDSANoGate",
-    "FDSANoFreqLearn",
-    # Comparisons
-    "EMA",
-    "SimAM",
-    "CBAM",
-    "CoordAtt",
     "register_custom_modules",
 ]

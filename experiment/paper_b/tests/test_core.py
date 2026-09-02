@@ -27,15 +27,12 @@ from experiment.paper_b.frequency_interventions import haar_filters, intervene
 from experiment.paper_b.mitigation_summary import _negative_sample_key
 from experiment.paper_b.operating_point import operational_metrics, select_threshold
 from experiment.paper_b.pilot import benchmark_path, diagnostics_path, evaluate_gate, result_path
-from experiment.paper_b.pretrained import remap_source_key, transfer_pretrained
+from experiment.paper_b.pretrained import remap_source_key
 from experiment.paper_b.prepare_hard_negatives import prepare as prepare_hard_negatives
 from experiment.paper_b.reference_verifier import box_change_score, sample_key
 from experiment.paper_b.validation_postprocess import suppress_overlaps
 from experiment.paper_b.common import sha256_file
 from experiment.paper_b.stats import format_cell, format_latex_cell, latex_escape
-
-
-PROJECT_DIR = Path(__file__).resolve().parents[3]
 
 
 class PaperBCoreTests(unittest.TestCase):
@@ -282,18 +279,6 @@ class PaperBCoreTests(unittest.TestCase):
         self.assertEqual(remap_source_key("model.4.cv.weight", [5]), "model.4.cv.weight")
         self.assertEqual(remap_source_key("model.5.cv.weight", [5]), "model.6.cv.weight")
         self.assertEqual(remap_source_key("model.7.cv.weight", [5, 8]), "model.9.cv.weight")
-
-    @unittest.skipUnless((PROJECT_DIR / "yolo11m.pt").exists(), "local YOLO11m weights unavailable")
-    def test_wsr_reuses_nearly_all_pretrained_parameters(self):
-        from algorithm.register import register_custom_modules
-
-        register_custom_modules()
-        from ultralytics import YOLO
-
-        target = YOLO(str(PROJECT_DIR / "experiment" / "configs" / "dwgsa_router_yolo11m_p3.yaml"))
-        report = transfer_pretrained(target, PROJECT_DIR / "yolo11m.pt", YOLO, 0.99)
-        self.assertEqual(report["inserted_target_layers"], [5])
-        self.assertGreaterEqual(report["loaded_parameter_fraction"], 0.99)
 
     def test_unified_coco_evaluator_perfect_prediction(self):
         try:

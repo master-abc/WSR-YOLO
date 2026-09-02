@@ -508,7 +508,7 @@ def train_one(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="CCF-B paper experiment orchestrator")
+    parser = argparse.ArgumentParser(description="WSR-YOLO paper experiment orchestrator")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     subparsers = parser.add_subparsers(dest="command", required=True)
 

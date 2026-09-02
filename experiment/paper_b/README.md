@@ -2,10 +2,10 @@
 
 This track replaces the original "single smoke test plus empty tables" workflow with an auditable and reproducible paper protocol. It does not guarantee paper acceptance or manufacture state-of-the-art claims before training is complete. The versioned paper source is [`../../paper/main.tex`](../../paper/main.tex).
 
-See [`STATUS.md`](STATUS.md) for completion status, blocking items, and submission gates. Install the track-specific dependencies before running the workflow:
+See [`STATUS.md`](STATUS.md) for completion status, blocking items, and submission gates. Install the project dependencies before running the workflow:
 
 ```powershell
-pip install -r experiment\paper_b\requirements-paper-b.txt
+pip install -r requirements.txt
 ```
 
 To rebuild the reported statistical tables from committed frozen results without retraining, run:
@@ -34,10 +34,8 @@ The paper addresses three primary questions:
 |---|---:|---:|---:|---|
 | DsPCBSD+ | 7,387 | 821 | 2,051 | Primary industrial dataset; the official validation split is locked as the final test set |
 | DeepPCB | 850 | 150 | 500 | Classical benchmark, robustness analysis, and cross-domain experiments |
-| DefectDet | 188 | 40 | 40 | Exploratory only; disabled by default because sequence/template groups are unavailable |
-| PCB-IND | Pending official data | Pending board-level grouping | Pending lock | External 2026 industrial validation; disabled by default |
 
-The data-split seed is fixed at 2026 and is separate from the model seeds. Perceptual auditing identifies visually similar board candidates in public PCB datasets but no exact cross-split SHA-256 duplicates. Because the original releases do not provide complete board or lot identifiers, this repository claims that the risk was audited and disclosed, not that board-level independence was proven. The local `PKU_PCB` boxes are almost all placeholder-like `0.5 0.5 0.8 0.8` boxes, so the audit rejects that dataset. PCB-IND must not be enabled until the official data and license are available and a board- or lot-grouped split can be established.
+The data-split seed is fixed at 2026 and is separate from the model seeds. Perceptual auditing identifies visually similar board candidates in the registered PCB datasets but no exact cross-split SHA-256 duplicates. Because the original releases do not provide complete board or lot identifiers, this repository claims that the risk was audited and disclosed, not that board-level independence was proven. DefectDet and PKU_PCB are intentionally excluded from the runnable protocol because their available grouping or bounding-box metadata does not support the required leakage-safe evaluation.
 
 ```powershell
 cd WSR-YOLO

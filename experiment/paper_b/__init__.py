@@ -1,4 +1,4 @@
-"""Reproducible experiment utilities for the DWGSA/WSR paper track."""
+"""Reproducible experiment utilities for the WSR-YOLO paper."""
 
 __all__ = ["common"]
 

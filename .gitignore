@@ -5,12 +5,6 @@ datasets/
 
 # Training outputs
 runs/
-experiment/exp1/runs/
-experiment/exp2/runs/
-experiment/exp3/runs/
-experiment/exp4/output/
-experiment/exp4/figures/
-experiment/datasets_mini/
 results/
 logs/
 

@@ -1,12 +1,9 @@
-"""
-DWGSA: Discrete Wavelet Geometry-prior Sparse Attention
+"""Wavelet-Conditioned Sparse Routing components for WSR-YOLO.
 
-核心创新：
-1. 基于 Haar 小波的多级频域-空域联合分解（替代 FFT patch-wise 处理）
-2. 利用 LL 低频子带估计 PCB 几何先验，驱动稀疏注意力计算
-3. 基于物理信号（HF 能量比 + 空间稀疏度）的自适应双分支融合
-
-接口兼容 Ultralytics YOLO：DWGSA(c1, c2, n=1, e=0.5)
+WSR ranks P3 tokens with fixed Haar responses and applies an exact-budget
+gather--refine--scatter transform. The historical module filename and
+``DWGSARouter`` base-class name remain stable for frozen-checkpoint
+compatibility; public configurations use ``WSR`` or ``WSRStable``.
 """
 
 import torch

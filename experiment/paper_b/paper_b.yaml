@@ -15,14 +15,6 @@ datasets:
     source: ../configs/deeppcb.yaml
     split_mode: preserve
     role: secondary_classic
-  defectdet:
-    enabled: false
-    source: ../configs/defectdet.yaml
-    split_mode: resplit-all
-    train_fraction: 0.70
-    val_fraction: 0.15
-    role: exploratory_small
-    note: "Disabled from formal tables until sequence/template group IDs support a leakage-safe split."
   dspcbsd_plus:
     enabled: true
     source: ../../datasets/DsPCBSD_plus/yolo_source/dataset.yaml
@@ -30,13 +22,6 @@ datasets:
     train_fraction: 0.90
     role: primary_industrial
     note: "Official validation is reserved as untouched final test."
-  pcbind:
-    enabled: false
-    source: ../configs/pcbind.yaml
-    split_mode: preserve
-    role: external_industrial_2026
-    note: "Enable after acquiring the official PCB-IND release and verifying board/lot identifiers."
-
 controlled_track:
   # Seven paired seeds allow an exact two-sided Wilcoxon test to resolve p < .05.
   seeds: [13, 42, 3407, 4703, 8391, 9475, 10501]
