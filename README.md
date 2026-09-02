@@ -3,7 +3,7 @@
 This repository contains the paper, implementation, experiment protocol, and frozen audit artifacts for **Wavelet Conditioned Sparse Routing for PCB Defect Detection**.
 
 > [!IMPORTANT]
-> The formal paper evidence is produced exclusively by the audited track in [`experiment/paper_b/`](experiment/paper_b/). The older `experiment/exp1`--`experiment/exp5` DWGSA/YOLO11m experiments are retained only for historical traceability and must not be used to support the current paper's conclusions.
+> The formal paper evidence is produced exclusively by the audited WSR track in [`experiment/paper_b/`](experiment/paper_b/). Preliminary experiments under `experiment/exp1`--`experiment/exp5` are archived for traceability and must not be used to support the current paper's conclusions.
 
 ## Overview
 
@@ -40,11 +40,11 @@ These results support WSR as an auditable routing probe, not as a reliable accur
 
 ```text
 .
-|-- algorithm/                     # WSR, legacy DWGSA, and comparison modules
+|-- algorithm/                     # WSR, archived prototypes, and comparison modules
 |-- experiment/
 |   |-- paper_b/                   # Audited protocol used by the current paper
 |   |-- configs/                   # Model and dataset configurations
-|   |-- exp1/ ... exp5/            # Legacy DWGSA experiments
+|   |-- exp1/ ... exp5/            # Archived preliminary experiments
 |   `-- scripts/                   # Supporting evaluation and visualization tools
 |-- paper/                         # IEEE LaTeX sources, figures, and generated documents
 |-- tests/                         # Repository-level tests
@@ -72,9 +72,21 @@ python -c "import torch; print(f'PyTorch {torch.__version__}, CUDA {torch.cuda.i
 python -c "from algorithm.register import register_custom_modules; register_custom_modules()"
 ```
 
-## Audited Experiment Workflow
+## Reproducing the Paper Experiments
 
-Prepare datasets and run the leakage audit before training:
+There are two reproduction levels. Rebuilding the reported statistics uses the committed frozen results and does not require a GPU or dataset:
+
+```bash
+python -m experiment.paper_b.stats \
+  --root experiment/paper_b/frozen_results \
+  --output experiment/paper_b/generated/tables
+```
+
+Full retraining requires the official datasets and a CUDA GPU. Run the following steps from the repository root.
+
+### 1. Download, Convert, and Audit the Datasets
+
+`prepare_dspcbsd` downloads and converts the official DsPCBSD+ release. Place DeepPCB under `datasets/DeepPCB` before preparing its fixed split.
 
 ```bash
 python -m experiment.paper_b.prepare_dspcbsd
@@ -83,15 +95,56 @@ python -m experiment.paper_b.run prepare --dataset deeppcb --coco
 python -m experiment.paper_b.run audit
 ```
 
-Materialize and run the controlled same-architecture experiment:
+The audit must complete without fatal annotation, exact-duplicate, or split-integrity findings.
+
+### 2. Freeze Validation-Only Model Selection
+
+```bash
+python -m experiment.paper_b.pilot plan
+python -m experiment.paper_b.pilot train --device 0
+python -m experiment.paper_b.pilot diagnose --device 0
+python -m experiment.paper_b.pilot benchmark --device 0
+python -m experiment.paper_b.pilot evaluate
+python -m experiment.paper_b.pilot freeze
+```
+
+This stage uses only validation data. Commit the resulting selection decision before starting formal runs.
+
+### 3. Inspect and Run the Registered Controlled Matrix
 
 ```bash
 python -m experiment.paper_b.run plan
-python -m experiment.paper_b.run train --dataset dspcbsd_plus --model yolo11s --seed 13 --device 0
-python -m experiment.paper_b.run train --dataset dspcbsd_plus --model wsr_yolo11s_p3_r25 --seed 13 --device 0
+
+# Primary DsPCBSD+ experiment: seven paired seeds and two architectures.
+for seed in 13 42 3407 4703 8391 9475 10501; do
+  python -m experiment.paper_b.run train --dataset dspcbsd_plus --model yolo11s --seed "$seed" --device 0
+  python -m experiment.paper_b.run train --dataset dspcbsd_plus --model wsr_yolo11s_p3_r25 --seed "$seed" --device 0
+done
+
+# Descriptive DeepPCB experiment: three paired seeds and two architectures.
+for seed in 13 42 3407; do
+  python -m experiment.paper_b.run train --dataset deeppcb --model yolo11s --seed "$seed" --device 0
+  python -m experiment.paper_b.run train --dataset deeppcb --model wsr_yolo11s_p3_r25 --seed "$seed" --device 0
+done
 ```
 
-Formal runs require a clean, resolvable Git commit, a completed full-data audit, and at least 99% pretrained-parameter coverage after WSR insertion. See the [full experiment guide](experiment/paper_b/README.md) for paired seeds, comparator environments, evaluation, negative-template mitigation, mechanism diagnostics, and result freezing.
+Each `train` command trains one model, selects `best.pt` from validation behavior, evaluates the locked test split once with the shared COCOeval implementation, and writes `standardized_result.json`. Use `--resume` only for an interrupted run with matching provenance.
+
+Formal runs require a clean, resolvable Git commit, a successful full-data audit, a frozen validation-only pilot decision, and at least 99% pretrained-parameter coverage after WSR insertion.
+
+### 4. Freeze Results and Rebuild Statistical Tables
+
+```bash
+python -m experiment.paper_b.freeze_results \
+  --root experiment/paper_b/generated/runs \
+  --output experiment/paper_b/frozen_results
+
+python -m experiment.paper_b.stats \
+  --root experiment/paper_b/frozen_results \
+  --output experiment/paper_b/generated/tables
+```
+
+Controlled run outputs are stored under `experiment/paper_b/generated/runs/controlled/<dataset>/<model>/seed_<seed>/`. The [complete reproduction guide](experiment/paper_b/README.md) documents validation-only ablations, official recent-detector environments, latency measurement, mechanism diagnostics, corruptions, cross-domain evaluation, negative-template mitigation, and operating-point analysis.
 
 ## Evaluation Principles
 
@@ -110,9 +163,9 @@ python -m pytest experiment/paper_b/tests -q
 
 The last verified test run completed with 43 passed tests and one skipped test.
 
-## Legacy DWGSA Experiments
+## Archived Preliminary Experiments
 
-The original YOLO11m/DWGSA experiments remain under `experiment/exp1`--`experiment/exp5`, with an English overview in [`experiment/README_experiments.md`](experiment/README_experiments.md). They are useful for implementation history only. Their datasets, model scale, evaluation assumptions, and claims differ from the frozen WSR paper protocol.
+Earlier exploratory code remains under `experiment/exp1`--`experiment/exp5`, with an overview in [`experiment/README_experiments.md`](experiment/README_experiments.md). It is retained only for implementation history. Its datasets, model scale, evaluation assumptions, and claims differ from the frozen WSR paper protocol.
 
 ## Citation
 

@@ -1,4 +1,4 @@
-# Audited Paper Experiment Track
+# WSR-YOLO Paper Reproduction Guide
 
 This track replaces the original "single smoke test plus empty tables" workflow with an auditable and reproducible paper protocol. It does not guarantee paper acceptance or manufacture state-of-the-art claims before training is complete. The versioned paper source is [`../../paper/main.tex`](../../paper/main.tex).
 
@@ -7,6 +7,16 @@ See [`STATUS.md`](STATUS.md) for completion status, blocking items, and submissi
 ```powershell
 pip install -r experiment\paper_b\requirements-paper-b.txt
 ```
+
+To rebuild the reported statistical tables from committed frozen results without retraining, run:
+
+```powershell
+python -m experiment.paper_b.stats `
+  --root experiment\paper_b\frozen_results `
+  --output experiment\paper_b\generated\tables
+```
+
+Full retraining requires the official datasets, a CUDA GPU, and the ordered workflow below. All commands are run from the repository root.
 
 ## Core Research Questions
 
@@ -30,7 +40,7 @@ The paper addresses three primary questions:
 The data-split seed is fixed at 2026 and is separate from the model seeds. Perceptual auditing identifies visually similar board candidates in public PCB datasets but no exact cross-split SHA-256 duplicates. Because the original releases do not provide complete board or lot identifiers, this repository claims that the risk was audited and disclosed, not that board-level independence was proven. The local `PKU_PCB` boxes are almost all placeholder-like `0.5 0.5 0.8 0.8` boxes, so the audit rejects that dataset. PCB-IND must not be enabled until the official data and license are available and a board- or lot-grouped split can be established.
 
 ```powershell
-cd DWGSA-YOLO
+cd WSR-YOLO
 python -m experiment.paper_b.prepare_dspcbsd
 python -m experiment.paper_b.run prepare --dataset dspcbsd_plus --coco
 python -m experiment.paper_b.run prepare --dataset deeppcb --coco
@@ -60,11 +70,27 @@ The pilot runs the YOLO11s validation baseline and the P3/12.5% candidate with s
 
 ```powershell
 python -m experiment.paper_b.run plan
-python -m experiment.paper_b.run train --dataset dspcbsd_plus --model yolo11s --seed 13 --device 0
-python -m experiment.paper_b.run train --dataset dspcbsd_plus --model wsr_yolo11s_p3_r25 --seed 13 --device 0
+
+# Primary DsPCBSD+ experiment: seven paired seeds.
+$primarySeeds = 13, 42, 3407, 4703, 8391, 9475, 10501
+foreach ($seed in $primarySeeds) {
+  python -m experiment.paper_b.run train --dataset dspcbsd_plus --model yolo11s --seed $seed --device 0
+  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  python -m experiment.paper_b.run train --dataset dspcbsd_plus --model wsr_yolo11s_p3_r25 --seed $seed --device 0
+  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
+
+# Descriptive DeepPCB experiment: three paired seeds.
+$secondarySeeds = 13, 42, 3407
+foreach ($seed in $secondarySeeds) {
+  python -m experiment.paper_b.run train --dataset deeppcb --model yolo11s --seed $seed --device 0
+  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  python -m experiment.paper_b.run train --dataset deeppcb --model wsr_yolo11s_p3_r25 --seed $seed --device 0
+  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
 ```
 
-The baseline and proposed model use seven paired seeds: 13, 42, 3407, 4703, 8391, 9475, and 10501. Seven pairs allow an exact two-sided Wilcoxon test to reach `p<0.05`; with five pairs, the theoretical minimum p-value is 0.0625. Add `--resume` after an interruption. A run with an existing standardized result is skipped by default.
+The primary baseline and proposed model use seven paired seeds: 13, 42, 3407, 4703, 8391, 9475, and 10501. Seven pairs allow an exact two-sided Wilcoxon test to reach `p<0.05`; with five pairs, the theoretical minimum p-value is 0.0625. DeepPCB uses the registered three-seed descriptive track. Each `train` invocation trains one model, selects `best.pt` from validation behavior, evaluates the locked test split exactly once with the shared COCOeval implementation, and writes `standardized_result.json` under `generated/runs/controlled/<dataset>/<model>/seed_<seed>/`. Add `--resume` after an interruption. A run with an existing standardized result is skipped by default.
 
 Before a formal run, commit the current code, keep the Git worktree clean, and complete the full data audit with SHA-256 and perceptual near-duplicate checks. Inserting WSR at P3 changes later Ultralytics layer indices, so the scripts explicitly remap pretrained YOLO11s parameters. Training is rejected when target-parameter coverage is below 99%. The formal budget is at most 80 epochs with `batch=8`, `nbs=64`, and patience 15. WSR must not receive a uniquely reduced resolution or training budget. See [`COMPUTE_BUDGET.md`](COMPUTE_BUDGET.md) for measured cost estimates.
 

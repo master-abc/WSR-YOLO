@@ -1,16 +1,16 @@
-# Legacy DWGSA-YOLO Experiments
+# Archived Preliminary Experiments
 
 > [!WARNING]
-> This directory documents the original DWGSA-YOLO experiments. It is retained for historical traceability and does not provide evidence for the current WSR paper. Use [`paper_b/`](paper_b/) for the audited formal protocol.
+> This directory documents preliminary experiments that predate the final WSR protocol. It is retained for historical traceability and does not provide evidence for the current paper. Use [`paper_b/`](paper_b/) for the audited formal protocol.
 
-The legacy track was designed around the earlier paper concept, **DWGSA-YOLO: Discrete Wavelet Geometry-prior Sparse Attention for PCB Defect Detection**.
+The archived track uses an earlier YOLO11m attention prototype, different datasets, and different evaluation assumptions. Its results must not be mixed with the current paper tables.
 
 ## Experiment Overview
 
 | Experiment | Research Question | Original Objective |
 |---|---|---|
-| `exp1` | How does DWGSA compare with generic attention modules? | Compare domain-specific and general-purpose attention |
-| `exp2` | How much does each DWGSA component contribute? | Perform component ablations |
+| `exp1` | How does the preliminary module compare with generic attention modules? | Compare domain-specific and general-purpose attention |
+| `exp2` | How much does each preliminary component contribute? | Perform component ablations |
 | `exp3` | Does the model transfer across datasets? | Explore cross-dataset generalization |
 | `exp4` | Does attention focus on defects? | Visualize the original design motivation |
 | `exp5` | Is the model robust to synthetic noise? | Explore the effect of wavelet features under corruption |
@@ -27,7 +27,7 @@ python experiment/exp2/run.py --smoke
 python experiment/exp3/run.py --smoke
 python experiment/exp4/run.py --smoke
 
-# 3. Run the legacy full experiments with real datasets and a GPU.
+# 3. Run the archived full experiments with real datasets and a GPU.
 python experiment/exp1/run.py --full
 python experiment/exp2/run.py --full
 python experiment/exp3/run.py --full
@@ -41,11 +41,11 @@ python experiment/exp4/run.py --full --dwgsa-weights experiment/exp1/runs/dwgsa_
 - **PKU_PCB:** Image-level class annotations with placeholder-like bounding boxes. The audited WSR protocol rejects it as a detection benchmark.
 - **Mini datasets:** Synthetic data generated only for smoke testing.
 
-## Legacy Experiment Details
+## Archived Experiment Details
 
 ### Exp1: Attention-Module Comparison
 
-Compares DWGSA-YOLO with CBAM, EMA, SimAM, CoordAtt, and FDSA. The original hypothesis was that high-frequency anomalies and PCB geometry could benefit from domain-specific attention.
+Compares the preliminary attention module with CBAM, EMA, SimAM, CoordAtt, and FDSA. The original hypothesis was that high-frequency anomalies and PCB geometry could benefit from domain-specific attention.
 
 ### Exp2: Component Ablation
 
@@ -62,7 +62,7 @@ Explores transfer to DefectDet and PKU_PCB. These runs do not satisfy the data-i
 
 ### Exp4: Visualization
 
-Produces Grad-CAM, wavelet-subband, and geometry-prior visualizations for the legacy module.
+Produces Grad-CAM, wavelet-subband, and geometry-prior visualizations for the archived module.
 
 ### Exp5: Synthetic-Noise Robustness
 
