@@ -122,6 +122,6 @@ The original YOLO11m/DWGSA experiments remain under `experiment/exp1`--`experime
   author       = {Liang, Jiefeng and Luo, Lihua and Tan, Sijin and Lin, Yanni and Zhao, Zhizhuo and Cai, Zhaofeng},
   year         = {2026},
   howpublished = {GitHub repository},
-  url          = {https://github.com/master-abc/DWGSA-YOLO}
+  url          = {https://github.com/master-abc/WSR-YOLO}
 }
 ```

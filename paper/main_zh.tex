@@ -52,7 +52,7 @@ and Zhaofeng Cai\textsuperscript{a}}
 \IEEEauthorblockA{\textsuperscript{a}Department of Computing, Guangdong University of Science and Technology, Dongguan 523083, China}
 \IEEEauthorblockA{\textsuperscript{b}Faculty of Computer and Mathematical Sciences, Universiti Teknologi MARA, 40450 Shah Alam, Selangor, Malaysia}
 \IEEEauthorblockA{\textsuperscript{*}Corresponding author: Lihua Luo, 260423630@qq.com}
-\IEEEauthorblockA{项目仓库：\url{https://github.com/master-abc/DWGSA-YOLO}}
+\IEEEauthorblockA{项目仓库：\url{https://github.com/master-abc/WSR-YOLO}}
 }
 \maketitle
 
@@ -356,7 +356,7 @@ I_{pair}&=\operatorname{clip}_{[0,255]}([c;\,c+s;\,c-s]).
 
 最佳误报警折中来自参考辅助检测，而不是仅目标图像的WSR。共识结果与成对参考结果均为事后分析；后者仅使用一个随机种子、改变输入约定，并在已知模板的扰动上评估，而非独立生产板。其他局限包括DeepPCB仅有3组配对、仅使用一块GPU、较大模型缺少完整的同设备计时、组件对照仅用一个验证划分、硬top-$k$不连续，以及缺少板号/批次标识；相似度筛查留下的跨划分候选对也尚未解决。PCB-IND现已作为真实工业基准发布~\cite{pcbind}，但未在冻结协议下完成；后续研究应在训练或调参前声明其划分与假设。生产性结论还需要按模板、相机、光照和批次分层的锁定真实无缺陷板集合。
 
-正式记录保留源代码、协议、数据集、检查点、预测和环境哈希。受控实验使用Python 3.10、PyTorch 2.5.1/CUDA 12.1和Ultralytics 8.4.50；比较器环境随结果一同保存。已验证的测试JSON被冻结，脚本可重建数据划分、验证组件实验从未评估测试集，并生成用于核对所有数值表格的机器可读汇总。这些材料支持数值复现，但不能替代在新电路板上的外部验证。代码与审计材料已公开于\url{https://github.com/master-abc/DWGSA-YOLO}；完整的归档发布还应保存冻结策略、原始预测以及可获取的检查点或权重哈希。数值可复现也不等同于推断独立：逐类别、尺寸、退化和阈值切片复用相同检查点与图像，因此本文将其视为分解而非额外样本；模型比较的抽样单位仍是配对随机种子，设备计时的单位则是交替循环。
+正式记录保留源代码、协议、数据集、检查点、预测和环境哈希。受控实验使用Python 3.10、PyTorch 2.5.1/CUDA 12.1和Ultralytics 8.4.50；比较器环境随结果一同保存。已验证的测试JSON被冻结，脚本可重建数据划分、验证组件实验从未评估测试集，并生成用于核对所有数值表格的机器可读汇总。这些材料支持数值复现，但不能替代在新电路板上的外部验证。代码与审计材料已公开于\url{https://github.com/master-abc/WSR-YOLO}；完整的归档发布还应保存冻结策略、原始预测以及可获取的检查点或权重哈希。数值可复现也不等同于推断独立：逐类别、尺寸、退化和阈值切片复用相同检查点与图像，因此本文将其视为分解而非额外样本；模型比较的抽样单位仍是配对随机种子，设备计时的单位则是交替循环。
 
 \section{结论}
 本文将WSR作为精确预算探针，发现框内路由富集、较低名义FLOPs、检测精度和部署表现并不会同步变化。WSR能够将选中的P3单元集中到缺陷框内，且只增加很少的算术开销，但既未建立可靠的主要精度增益，也未实现实际加速，其仅目标图像设置下的误报仍然较高。因此，本文的主要贡献是可审计的边界结果与评估模板，而不是WSR优越性声明。未来工作应在同一协议下测试成熟注意力对照、融合稀疏内核、更多配对随机种子、组安全PCB划分，并在独立生产负样本上进行预注册的参考辅助评估。
