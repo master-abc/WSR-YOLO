@@ -3,3 +3,13 @@ __pycache__/
 tests/__pycache__/
 *.pyc
 
+# The preregistered full-budget validation grid is small enough to publish as
+# auditable supplementary evidence. Keep it separate from frozen formal tests.
+!generated/
+generated/*
+!generated/revision_results/
+generated/revision_results/*
+!generated/revision_results/confirmatory/
+!generated/revision_results/confirmatory/*.json
+!generated/revision_results/confirmatory_summary.json
+

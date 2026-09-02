@@ -11,15 +11,26 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from algorithm.dwgsa import DWGSARouter, WSRStable
+from algorithm.dwgsa import DWGSARouter, MatchedConvResidual, ScaleOnlyControl, WSRStable
 from experiment.paper_b.corruptions import CORRUPTIONS, corrupt
 from experiment.paper_b.ablation import subset_coco_annotations, validation_run_directory
+from experiment.paper_b.aggregate_operating_points import aggregate as aggregate_operating_points
+from experiment.paper_b.analyze_false_positive import analyze as analyze_false_positives
 from experiment.paper_b.coco_evaluator import evaluate_coco_predictions, predict_yolo_to_coco
+from experiment.paper_b.confirmatory_summary import MODELS as CONFIRMATORY_MODELS
+from experiment.paper_b.confirmatory_summary import SEEDS as CONFIRMATORY_SEEDS
+from experiment.paper_b.confirmatory_summary import summarize as summarize_confirmatory
+from experiment.paper_b.consensus_ensemble import consensus_detections
 from experiment.paper_b.external_detr import prediction_rows
 from experiment.paper_b.external_ultralytics import normalize_prediction_image_ids
 from experiment.paper_b.frequency_interventions import haar_filters, intervene
+from experiment.paper_b.mitigation_summary import _negative_sample_key
+from experiment.paper_b.operating_point import operational_metrics, select_threshold
 from experiment.paper_b.pilot import benchmark_path, diagnostics_path, evaluate_gate, result_path
 from experiment.paper_b.pretrained import remap_source_key, transfer_pretrained
+from experiment.paper_b.prepare_hard_negatives import prepare as prepare_hard_negatives
+from experiment.paper_b.reference_verifier import box_change_score, sample_key
+from experiment.paper_b.validation_postprocess import suppress_overlaps
 from experiment.paper_b.common import sha256_file
 from experiment.paper_b.stats import format_cell, format_latex_cell, latex_escape
 
@@ -28,6 +39,239 @@ PROJECT_DIR = Path(__file__).resolve().parents[3]
 
 
 class PaperBCoreTests(unittest.TestCase):
+    def test_hard_negative_preparation_ranks_training_inputs_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            positive_list = root / "positive.txt"
+            negative_list = root / "negative.txt"
+            positive_list.write_text("positive.jpg\n", encoding="utf-8")
+            negatives = [root / f"negative_{index}.jpg" for index in range(4)]
+            negative_list.write_text(
+                "\n".join(str(path) for path in negatives) + "\n", encoding="utf-8"
+            )
+            data = root / "dataset.yaml"
+            data.write_text(
+                f"train:\n  - {positive_list}\n  - {negative_list}\nval: unused.txt\n",
+                encoding="utf-8",
+            )
+            audit = root / "audit.json"
+            audit.write_text(
+                json.dumps(
+                    {
+                        "per_image": [
+                            {"image": str(path), "scores": [score]}
+                            for path, score in zip(negatives, (0.1, 0.9, 0.3, 0.8))
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            result = prepare_hard_negatives(data, audit, root / "derived", 0.5, 3)
+            rows = Path(result["negative_list"]).read_text(encoding="utf-8").splitlines()
+
+            self.assertEqual(result["hard_images"], 2)
+            self.assertEqual(result["effective_negative_samples"], 8)
+            self.assertEqual(rows.count(str(negatives[1].resolve())), 3)
+            self.assertEqual(rows.count(str(negatives[3].resolve())), 3)
+            self.assertFalse(result["test_images_used_for_selection"])
+
+    def test_consensus_requires_distinct_models_same_class_and_location(self):
+        model_rows = [
+            {
+                (1, 1): [
+                    {"score": 0.9, "box": [0, 0, 10, 10]},
+                    {"score": 0.8, "box": [1, 1, 11, 11]},
+                ],
+                (1, 2): [{"score": 0.9, "box": [0, 0, 10, 10]}],
+            },
+            {(1, 1): [{"score": 0.85, "box": [1, 1, 11, 11]}]},
+            {(1, 1): [{"score": 0.95, "box": [30, 30, 40, 40]}]},
+        ]
+
+        fused = consensus_detections(
+            model_rows,
+            base_confidence=0.5,
+            match_iou=0.3,
+            minimum_votes=2,
+        )
+
+        self.assertEqual(set(fused), {(1, 1)})
+        self.assertEqual(len(fused[(1, 1)]), 1)
+        self.assertEqual(fused[(1, 1)][0]["votes"], 2)
+
+    def test_deeppcb_negative_keys_match_across_hosts_and_suffixes(self):
+        self.assertEqual(
+            _negative_sample_key("/remote/test/00041000_temp.jpg"),
+            _negative_sample_key(r"C:\local\test\00041000_negative.jpg"),
+        )
+        self.assertEqual(sample_key("00041000_test.jpg"), "00041000")
+        self.assertEqual(sample_key("00041000_temp.jpg"), "00041000")
+
+    def test_reference_verifier_box_score_is_bounded(self):
+        difference = np.zeros((12, 12), dtype=np.float32)
+        self.assertEqual(box_change_score(difference, [3, 3, 4, 4]), 0.0)
+        difference[3:7, 3:7] = 255.0
+        score = box_change_score(difference, [3, 3, 4, 4])
+        self.assertGreater(score, 0.0)
+        self.assertLessEqual(score, 1.0)
+
+    def test_operating_point_aggregate_preserves_seed_pairing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            paths = []
+            for seed, threshold, fpr in ((42, 0.6, 0.12), (13, 0.7, 0.08)):
+                record = {
+                    "selection": {"selected_threshold": threshold},
+                    "negative_calibration": {"board_false_positive_rate": 0.04},
+                    "negative_holdout": {
+                        "calibrated": {
+                            "board_false_positive_rate": fpr,
+                            "false_positives_per_image": fpr * 2,
+                        }
+                    },
+                    "positive_test": {
+                        "calibrated": {
+                            "overall": {
+                                "precision": 0.9,
+                                "recall": 0.8,
+                                "f1": 0.847,
+                            }
+                        }
+                    },
+                }
+                path = root / f"seed{seed}.json"
+                path.write_text(json.dumps(record), encoding="utf-8")
+                paths.append(path)
+            result = aggregate_operating_points(paths, [42, 13], root / "out.json")
+            self.assertEqual(result["seeds"], [13, 42])
+            self.assertAlmostEqual(result["summary"]["holdout_board_fpr"]["mean"], 0.10)
+
+    def test_postprocess_suppression_can_be_class_aware(self):
+        predictions = [
+            {"image_id": 1, "category_id": 1, "bbox": [0, 0, 10, 10], "score": 0.9},
+            {"image_id": 1, "category_id": 1, "bbox": [1, 1, 10, 10], "score": 0.8},
+            {"image_id": 1, "category_id": 2, "bbox": [1, 1, 10, 10], "score": 0.7},
+        ]
+        classwise = suppress_overlaps(predictions, 0.5, class_agnostic=False)
+        agnostic = suppress_overlaps(predictions, 0.5, class_agnostic=True)
+        self.assertEqual(len(classwise), 2)
+        self.assertEqual(len(agnostic), 1)
+
+    def test_operating_point_calibration_is_discrete_and_class_aware(self):
+        negative_rows = {
+            "a": [0.90],
+            "b": [0.70, 0.20],
+            "c": [0.40],
+            "d": [],
+        }
+        threshold = select_threshold(negative_rows, 0.25)
+        self.assertGreater(threshold, 0.70)
+        self.assertLessEqual(threshold, 0.90)
+
+        annotations = {
+            "categories": [{"id": 1, "name": "defect"}],
+            "annotations": [
+                {
+                    "id": 1,
+                    "image_id": 10,
+                    "category_id": 1,
+                    "bbox": [0, 0, 10, 10],
+                    "iscrowd": 0,
+                }
+            ],
+        }
+        predictions = [
+            {"image_id": 10, "category_id": 1, "bbox": [0, 0, 10, 10], "score": 0.9},
+            {"image_id": 10, "category_id": 1, "bbox": [20, 20, 5, 5], "score": 0.8},
+            {"image_id": 10, "category_id": 2, "bbox": [0, 0, 10, 10], "score": 0.95},
+        ]
+        metrics = operational_metrics(annotations, predictions, 0.75)
+        self.assertEqual(metrics["overall"]["tp"], 1)
+        self.assertEqual(metrics["overall"]["fp"], 2)
+        self.assertEqual(metrics["overall"]["fn"], 0)
+
+    def test_confirmatory_summary_validates_complete_paired_design(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for model_index, model in enumerate(CONFIRMATORY_MODELS):
+                for seed_index, seed in enumerate(CONFIRMATORY_SEEDS):
+                    record = {
+                        "model": model,
+                        "seed": seed,
+                        "budget_profile": "confirmatory",
+                        "selection_split": "val",
+                        "test_evaluated": False,
+                        "protocol_sha256": "one-protocol",
+                        "environment_at_start": {"git_commit": "one-commit"},
+                        "metrics": {
+                            "map50_95": 0.4 + model_index * 0.001 + seed_index * 0.0001
+                        },
+                        "complexity": {
+                            "parameters": 100 + model_index,
+                            "gflops": 20.0 + model_index * 0.01,
+                        },
+                        "pretrained_transfer": {"loaded_parameter_fraction": 1.0},
+                    }
+                    (root / f"{model}__seed_{seed}.json").write_text(
+                        json.dumps(record), encoding="utf-8"
+                    )
+            output = root / "summary.json"
+            summary = summarize_confirmatory(root, output)
+            proposed = summary["models"]["confirm_wsr_p3_r25"]
+            self.assertEqual(len(summary["models"]), 9)
+            self.assertAlmostEqual(
+                proposed["paired_delta_vs_yolo11s_points"]["mean"], 0.1
+            )
+            self.assertEqual(proposed["added_parameters_vs_yolo11s"], 1)
+            self.assertTrue(output.is_file())
+
+    def test_negative_input_analysis_is_paired_by_image(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            baseline_path = root / "baseline.json"
+            candidate_path = root / "candidate.json"
+            output_path = root / "paired.json"
+            common = {
+                "image_manifest_sha256": "same-manifest",
+                "metrics": {"0.1": {}},
+            }
+            baseline_path.write_text(
+                json.dumps(
+                    {
+                        **common,
+                        "per_image": [
+                            {"image": "a", "scores": []},
+                            {"image": "b", "scores": [0.2]},
+                            {"image": "c", "scores": []},
+                            {"image": "d", "scores": []},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            candidate_path.write_text(
+                json.dumps(
+                    {
+                        **common,
+                        "per_image": [
+                            {"image": "a", "scores": [0.2]},
+                            {"image": "b", "scores": [0.2, 0.3]},
+                            {"image": "c", "scores": []},
+                            {"image": "d", "scores": []},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            row = analyze_false_positives(
+                baseline_path, candidate_path, output_path
+            )["rows"][0]
+            self.assertEqual(row["candidate_only_positive_boards"], 1)
+            self.assertEqual(row["baseline_only_positive_boards"], 0)
+            self.assertAlmostEqual(row["mean_paired_fp_difference"], 0.5)
+            self.assertTrue(output_path.is_file())
+
     def test_statistics_tables_are_latex_safe(self):
         summary = {"mean": 0.4669, "std": 0.0072}
         self.assertEqual(format_cell(summary), "46.69 +/- 0.72")
@@ -222,6 +466,27 @@ class PaperBCoreTests(unittest.TestCase):
         neighborhood_gradient = module.sparse_refine.neighborhood_logits.grad
         self.assertIsNotNone(neighborhood_gradient)
         self.assertGreater(float(neighborhood_gradient.abs().sum()), 0.0)
+
+    def test_random_router_preserves_budget_and_changes_selection(self):
+        torch.manual_seed(31)
+        module = DWGSARouter(64, route_ratio=0.25, random_router=True).enable_diagnostics().eval()
+        value = torch.randn(1, 64, 20, 20)
+        module(value)
+        first = module.last_route_mask.clone()
+        module(value)
+        second = module.last_route_mask.clone()
+        self.assertEqual(float(first.mean()), 0.25)
+        self.assertEqual(float(second.mean()), 0.25)
+        self.assertFalse(torch.equal(first, second))
+
+    def test_fairness_controls_preserve_shape_and_parameter_budget(self):
+        value = torch.randn(2, 256, 20, 20)
+        matched = MatchedConvResidual(256)
+        scale = ScaleOnlyControl(256)
+        self.assertEqual(matched(value).shape, value.shape)
+        self.assertEqual(scale(value).shape, value.shape)
+        parameters = sum(parameter.numel() for parameter in matched.parameters())
+        self.assertLess(abs(parameters - 13342) / 13342, 0.02)
 
     def test_depthwise_neighborhood_matches_explicit_unfold(self):
         torch.manual_seed(17)

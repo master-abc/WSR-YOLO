@@ -4,13 +4,14 @@ import argparse
 import contextlib
 import io
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
 try:
-    from .common import atomic_json_dump, sha256_file
+    from .common import PROJECT_DIR, atomic_json_dump, sha256_file
 except ImportError:
-    from common import atomic_json_dump, sha256_file
+    from common import PROJECT_DIR, atomic_json_dump, sha256_file
 
 
 COCO_STAT_NAMES = (
@@ -231,6 +232,13 @@ def main() -> int:
         print(args.output.resolve())
         return 0
 
+    # Custom WSR checkpoints contain project modules that must be registered
+    # before Ultralytics reconstructs the saved model.
+    if str(PROJECT_DIR) not in sys.path:
+        sys.path.insert(0, str(PROJECT_DIR))
+    from algorithm.register import register_custom_modules
+
+    register_custom_modules()
     from ultralytics import YOLO
 
     yolo = YOLO(str(args.weights.resolve()))

@@ -9,6 +9,7 @@ from algorithm.coordatt import CoordAtt
 from algorithm.dwgsa import (
     DWGSA, DWGSAWaveOnly, DWGSASparseOnly,
     DWGSANoGeoPrior, DWGSANoAdaptive, DWGSASingleLevel,
+    DWGSARouter, WSR, WSRStable, MatchedConvResidual, ScaleOnlyControl,
 )
 from algorithm.register import register_custom_modules
 
@@ -20,6 +21,11 @@ __all__ = [
     "DWGSANoGeoPrior",
     "DWGSANoAdaptive",
     "DWGSASingleLevel",
+    "DWGSARouter",
+    "WSR",
+    "WSRStable",
+    "MatchedConvResidual",
+    "ScaleOnlyControl",
     # FDSA (previous)
     "FDSA",
     "FDSAFreqOnly",

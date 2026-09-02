@@ -4,6 +4,7 @@ import argparse
 import copy
 import gc
 import json
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -50,6 +51,7 @@ def materialize_validation_subset(
     base_data_yaml: Path,
     fraction: float,
     subset_seed: int,
+    purpose: str = "validation_only_architecture_selection",
 ) -> tuple[Path, dict[str, Any]]:
     """Create a deterministic multilabel-stratified train subset without a test key."""
 
@@ -81,7 +83,7 @@ def materialize_validation_subset(
         "val": val_list.resolve().as_posix(),
         "names": {index: name for index, name in enumerate(names)},
         "metadata": {
-            "purpose": "validation_only_architecture_selection",
+            "purpose": purpose,
             "base_data_yaml": base_data_yaml.resolve().as_posix(),
             "fraction": fraction,
             "subset_seed": subset_seed,
@@ -89,9 +91,12 @@ def materialize_validation_subset(
         },
     }
     subset_yaml.parent.mkdir(parents=True, exist_ok=True)
-    subset_yaml.write_text(
-        yaml.safe_dump(subset_payload, sort_keys=False, allow_unicode=True), encoding="utf-8"
-    )
+    with tempfile.NamedTemporaryFile(
+        "w", encoding="utf-8", suffix=".yaml", dir=subset_yaml.parent, delete=False
+    ) as stream:
+        yaml.safe_dump(subset_payload, stream, sort_keys=False, allow_unicode=True)
+        temporary = Path(stream.name)
+    temporary.replace(subset_yaml)
     selected_class_images = {name: 0 for name in names}
     for image in selected:
         for class_id in image_classes(image, len(names)):
@@ -113,15 +118,21 @@ def materialize_validation_subset(
     return subset_yaml, report
 
 
-def materialize_models(protocol: dict) -> dict[str, str | Path]:
-    output = protocol["_output_root"] / "models" / "ablation"
+def materialize_models(
+    protocol: dict, track_key: str = "ablation_track"
+) -> dict[str, str | Path]:
+    output = protocol["_output_root"] / "models" / track_key.removesuffix("_track")
     output.mkdir(parents=True, exist_ok=True)
     paths: dict[str, str | Path] = {}
-    pilot = protocol.get("pilot_gate", {})
-    baseline_name = pilot.get("baseline")
-    if baseline_name:
-        paths[str(baseline_name)] = str(pilot.get("baseline_architecture", "yolo11s.yaml"))
-    for variant in protocol["ablation_track"]["models"]:
+    if track_key == "ablation_track":
+        pilot = protocol.get("pilot_gate", {})
+        baseline_name = pilot.get("baseline")
+        if baseline_name:
+            paths[str(baseline_name)] = str(pilot.get("baseline_architecture", "yolo11s.yaml"))
+    for variant in protocol[track_key]["models"]:
+        if "builtin_architecture" in variant:
+            paths[variant["name"]] = str(variant["builtin_architecture"])
+            continue
         if "architecture" in variant:
             paths[variant["name"]] = resolve_path(variant["architecture"], protocol["_path"].parent)
             continue
@@ -130,13 +141,27 @@ def materialize_models(protocol: dict) -> dict[str, str | Path]:
         found = 0
         for section in ("backbone", "head"):
             for layer in model_yaml.get(section, []):
-                if len(layer) >= 4 and layer[2] in {"DWGSARouter", "WSR", "WSRStable"}:
-                    layer[3] = list(variant["router_args"])
+                if len(layer) >= 4 and layer[2] in {
+                    "DWGSARouter",
+                    "WSR",
+                    "WSRStable",
+                }:
+                    if "module" in variant:
+                        layer[2] = str(variant["module"])
+                    arguments = variant.get("module_args", variant.get("router_args"))
+                    if arguments is None:
+                        raise ValueError(f"Missing module arguments for {variant['name']}")
+                    layer[3] = list(arguments)
                     found += 1
         if not found:
             raise ValueError(f"No DWGSARouter found in {template}")
         target = output / f"{variant['name']}.yaml"
-        target.write_text(yaml.safe_dump(model_yaml, sort_keys=False), encoding="utf-8")
+        with tempfile.NamedTemporaryFile(
+            "w", encoding="utf-8", suffix=".yaml", dir=output, delete=False
+        ) as stream:
+            yaml.safe_dump(model_yaml, stream, sort_keys=False)
+            temporary = Path(stream.name)
+        temporary.replace(target)
         paths[variant["name"]] = target
     atomic_json_dump(
         {
@@ -169,14 +194,22 @@ def validation_run_directory(
     budget_profile: str,
 ) -> Path:
     scope = "smoke" if smoke else "runs"
-    dataset_name = str(protocol["ablation_track"]["dataset"])
+    track_key = (
+        "confirmatory_component_track"
+        if budget_profile == "confirmatory"
+        else "ablation_track"
+    )
+    dataset_name = str(protocol[track_key]["dataset"])
     if budget_profile == "pilot":
         track_parts = ("pilot", dataset_name)
     elif budget_profile == "ablation":
         revision = sha256_file(protocol["_path"])[:12]
         track_parts = ("ablation", revision, dataset_name)
+    elif budget_profile == "confirmatory":
+        revision = sha256_file(protocol["_path"])[:12]
+        track_parts = ("confirmatory_component", revision, dataset_name)
     else:
-        raise ValueError(f"Unknown validation-only budget profile: {budget_profile}")
+        raise ValueError(f"Unknown budget profile: {budget_profile}")
     return (
         protocol["_output_root"]
         / scope
@@ -198,12 +231,18 @@ def train_validation_only(
 ) -> Path:
     if force and resume:
         raise ValueError("--force and --resume are mutually exclusive")
-    dataset_name = protocol["ablation_track"]["dataset"]
+    track_key = (
+        "confirmatory_component_track"
+        if budget_profile == "confirmatory"
+        else "ablation_track"
+    )
+    track = protocol[track_key]
+    dataset_name = track["dataset"]
     data_yaml = generated_dataset_yaml(protocol, dataset_name)
-    paths = materialize_models(protocol)
+    paths = materialize_models(protocol, track_key)
     if variant_name not in paths:
         raise KeyError(f"Unknown ablation variant: {variant_name}")
-    registered_seeds = [int(value) for value in protocol["ablation_track"]["seeds"]]
+    registered_seeds = [int(value) for value in track["seeds"]]
     if not smoke and seed not in registered_seeds:
         raise ValueError(f"Seed {seed} is outside registered ablation seeds: {registered_seeds}")
     audit_path = data_yaml.parent / "audit.json"
@@ -228,10 +267,10 @@ def train_validation_only(
         print(f"[skip] {result_file}")
         return result_file
     train_args = copy.deepcopy(protocol["controlled_track"]["train"])
-    if budget_profile not in {"pilot", "ablation"}:
-        raise ValueError(f"Unknown validation-only budget profile: {budget_profile}")
+    if budget_profile not in {"pilot", "ablation", "confirmatory"}:
+        raise ValueError(f"Unknown budget profile: {budget_profile}")
     profile_config = (
-        protocol["pilot_gate"] if budget_profile == "pilot" else protocol["ablation_track"]
+        protocol["pilot_gate"] if budget_profile == "pilot" else track
     )
     train_args.update(copy.deepcopy(profile_config.get("train", {})))
     if smoke:
@@ -241,14 +280,23 @@ def train_validation_only(
     requested_fraction = float(train_args.pop("fraction", 1.0))
     subset_seed = int(train_args.pop("subset_seed", int(protocol["split_seed"]) + 1))
     training_data_yaml, training_subset = materialize_validation_subset(
-        protocol, dataset_name, data_yaml, requested_fraction, subset_seed
+        protocol,
+        dataset_name,
+        data_yaml,
+        requested_fraction,
+        subset_seed,
+        (
+            "full_budget_confirmatory_component_analysis"
+            if budget_profile == "confirmatory"
+            else "validation_only_architecture_selection"
+        ),
     )
     train_args["fraction"] = 1.0
     environment = assert_formal_run_provenance(protocol, smoke)
     YOLO = import_ultralytics()
     architecture = str(paths[variant_name])
     pretrained = str(
-        profile_config.get("pretrained", protocol["ablation_track"].get("pretrained", "yolo11s.pt"))
+        profile_config.get("pretrained", track.get("pretrained", "yolo11s.pt"))
     )
     protocol_hash = sha256_file(protocol["_path"])
     base_data_hash = sha256_file(data_yaml)
@@ -417,7 +465,11 @@ def train_validation_only(
     )
     payload = {
         "schema_version": 2,
-        "track": "ablation_validation_only",
+        "track": (
+            "confirmatory_component_validation"
+            if budget_profile == "confirmatory"
+            else "ablation_validation_only"
+        ),
         "smoke": bool(smoke),
         "dataset": dataset_name,
         "base_data_yaml": str(data_yaml.resolve()),
@@ -455,7 +507,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Generate and run validation-only router ablations")
     parser.add_argument("--config", type=Path, default=PAPER_B_DIR / "paper_b.yaml")
     subparsers = parser.add_subparsers(dest="command", required=True)
-    subparsers.add_parser("materialize")
+    materialize = subparsers.add_parser("materialize")
+    materialize.add_argument("--confirmatory", action="store_true")
     train = subparsers.add_parser("train")
     train.add_argument("--variant", required=True)
     train.add_argument("--seed", type=int, required=True)
@@ -463,14 +516,23 @@ def main() -> int:
     train.add_argument("--smoke", action="store_true")
     train.add_argument("--force", action="store_true")
     train.add_argument("--resume", action="store_true")
+    train.add_argument("--confirmatory", action="store_true")
     args = parser.parse_args()
     protocol = load_protocol(args.config.resolve())
     if args.command == "materialize":
-        for name, path in materialize_models(protocol).items():
+        track_key = "confirmatory_component_track" if args.confirmatory else "ablation_track"
+        for name, path in materialize_models(protocol, track_key).items():
             print(f"{name}: {path}")
         return 0
     train_validation_only(
-        protocol, args.variant, args.seed, args.device, args.smoke, args.force, "ablation", args.resume
+        protocol,
+        args.variant,
+        args.seed,
+        args.device,
+        args.smoke,
+        args.force,
+        "confirmatory" if args.confirmatory else "ablation",
+        args.resume,
     )
     return 0
 

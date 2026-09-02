@@ -108,6 +108,78 @@ python -m experiment.paper_b.cross_domain pair experiment\paper_b\generated\cros
 
 若重新取得 DeepPCB 官方 template 图像，可用 `false_positive.py` 报告 defect-free board FPR 和 FPPI。只有人工确认全部输入均无缺陷时，该指标才有效。
 
+误报缓解实验必须把官方 test template 与训练、阈值选择隔离。`restore_deeppcb_split.py` 从官方发布恢复论文冻结的 850/150/500 划分；`negative_aware.py prepare` 为训练和验证目标加入对应的无缺陷 template 空标注样本，同时只导出、绝不训练 500 张 test template。第一阶段在种子 13 验证集选择 25% 训练负模板并固定到其他种子；第二阶段从第一阶段 checkpoint 出发，使用全部 850 张训练负模板继续微调 3 epoch；第三阶段由种子 13 的训练负模板分数固定最高 25% 难例并重复三次，再对三个 Stage-2 checkpoint 使用相同的 3 epoch、`lr0=1e-4` 方案。三个阶段都使用“正样本 + 无缺陷样本”验证集选择 checkpoint。它们属于额外训练数据与计算开销下的事后缓解实验，不能替换或覆写原始正式结果。
+
+```powershell
+python -m experiment.paper_b.negative_aware prepare `
+  --base-data experiment\paper_b\generated\datasets\deeppcb\dataset.yaml `
+  --template-list PATH\deeppcb_official_templates.txt `
+  --output experiment\paper_b\generated\negative_aware\dataset
+
+python -m experiment.paper_b.negative_aware train `
+  --data experiment\paper_b\generated\negative_aware\dataset\dataset.yaml `
+  --architecture experiment\configs\wsr_yolo11s_p3_r25.yaml `
+  --pretrained yolo11s.pt --seed 13 --device 0 `
+  --output experiment\paper_b\generated\negative_aware\runs\wsr_seed13 `
+  --positive-test-annotations experiment\paper_b\generated\coco\deeppcb\annotations\instances_test.json `
+  --positive-test-images experiment\paper_b\generated\coco\deeppcb\test
+
+# 第二阶段：方案只在 seed 13 验证集确定，随后对每个种子原样复现
+python experiment\paper_b\negative_aware.py prepare `
+  --base-data experiment\paper_b\generated\negative_aware_local\base\dataset.yaml `
+  --template-list experiment\paper_b\generated\negative_aware_local\base\templates.txt `
+  --train-negative-fraction 1.0 `
+  --output experiment\paper_b\generated\negative_aware_local\frac100
+
+python experiment\paper_b\negative_aware.py finetune `
+  --data experiment\paper_b\generated\negative_aware_local\frac100\dataset.yaml `
+  --initial-weights PATH\stage1_seed13_best.pt `
+  --output experiment\paper_b\generated\negative_aware_local\runs\stage2_frac100_seed13 `
+  --seed 13 --epochs 3 --lr0 0.0003 --batch 8 --workers 4 --device 0
+
+# 第三阶段：难负样本排名只读训练模板；三个种子必须复用同一个输出数据集
+python experiment\paper_b\prepare_hard_negatives.py `
+  --base-data experiment\paper_b\generated\negative_aware_local\frac100\dataset.yaml `
+  --negative-audit experiment\paper_b\generated\negative_aware_local\stage2_seed13_negative_train.json `
+  --hard-fraction 0.25 --repeat 3 `
+  --output experiment\paper_b\generated\negative_aware_local\hard25_r3
+
+python experiment\paper_b\negative_aware.py finetune `
+  --data experiment\paper_b\generated\negative_aware_local\hard25_r3\dataset.yaml `
+  --initial-weights PATH\stage2_seed13_best.pt `
+  --output experiment\paper_b\generated\negative_aware_local\runs\stage3_hard25_r3_seed13 `
+  --seed 13 --epochs 3 --lr0 0.0001 --batch 8 --workers 4 --device 0
+```
+
+对部署工作点，`operating_point.py` 从显式独立的 150 张验证 template 中选择达到给定板级误报上限的全局阈值，再在隔离的 500 张 test template 和正样本 test 上一次性评估；若校准池与 holdout 有部分重叠，脚本会直接拒绝运行。`positive_operating_point.py` 则只用正样本验证集选择逐类别 F1/F-beta 阈值。`aggregate_mitigation.py` 和 `aggregate_operating_points.py` 分别汇总固定阈值与校准阈值的多种子结果。两类结果均须标为 operating-point 或 post-hoc mitigation，不能与阈值无关的 COCO AP 主表混写。
+
+`consensus_ensemble.py` 把三 checkpoint 一致性策略严格拆成 `select` 与 `evaluate`：前者只能读取验证预测并冻结策略 JSON，后者读取该 JSON 后才允许处理测试预测。当前探索性策略要求三个模型给出同类框、各框与共同锚框的 IoU≥0.3，且置信度均≥0.65；它在 500 张测试模板上得到 0.6% 板级误报率和 0.813 召回。由于该方法族是在查看单模型测试表现后增加的，结果 JSON 会保留 protocol-adaptation 警告；不能在没有全新 holdout 的情况下将其表述为确认性或生产部署结果。
+
+```powershell
+python experiment\paper_b\consensus_ensemble.py select `
+  --positive-annotations PATH\instances_val.json `
+  --positive-predictions PATH\seed13_positive_val.json PATH\seed42_positive_val.json PATH\seed3407_positive_val.json `
+  --negative-predictions PATH\seed13_negative_val.json PATH\seed42_negative_val.json PATH\seed3407_negative_val.json `
+  --target-board-fprs 0 --output PATH\consensus_policy.json
+
+python experiment\paper_b\consensus_ensemble.py evaluate `
+  --policy PATH\consensus_policy.json --positive-annotations PATH\instances_test.json `
+  --positive-predictions PATH\seed13_positive_test.json PATH\seed42_positive_test.json PATH\seed3407_positive_test.json `
+  --negative-predictions PATH\seed13_negative_test.json PATH\seed42_negative_test.json PATH\seed3407_negative_test.json `
+  --output PATH\consensus_test.json
+```
+
+DsPCBSD+ 没有独立无缺陷板，因此只能针对正样本图中的误检做事后处理。`validation_postprocess.py` 在验证集网格中联合选择逐类 F-beta 阈值和同类/跨类重叠框抑制，再固定到测试预测；它同时输出最大 F1 和召回约束策略、完整候选网格及输入哈希。结果必须与共同阈值 0.25 的正式比较分开报告。
+
+```powershell
+python experiment\paper_b\validation_postprocess.py `
+  --validation-annotations PATH\dspcbsd_instances_val.json `
+  --validation-predictions PATH\dspcbsd_wsr_seed13_val_predictions.json `
+  --test-annotations PATH\dspcbsd_instances_test.json `
+  --test-predictions PATH\dspcbsd_wsr_seed13_test_predictions.json `
+  --output PATH\dspcbsd_wsr_seed13_postprocess.json
+```
+
 ### 5. 效率与统计
 
 ```powershell

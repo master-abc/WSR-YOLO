@@ -1,0 +1,302 @@
+{
+  "architecture": "/data/zjq/paperb_upload/confirmatory_component/repo/experiment/paper_b/generated/models/confirmatory_component/confirm_wsr_p3_r25_no_ll.yaml",
+  "architecture_definition_sha256": "efd2550adc778240cdf7894d4773ae3f87dac2e574ea6f6fccf98f8112fab00c",
+  "base_data_yaml": "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/datasets/dspcbsd_plus/dataset.yaml",
+  "base_data_yaml_sha256": "ec5de172aec2eec4b6dfac6c490d69654c90c93b798561cc7ff98a466939d320",
+  "budget_profile": "confirmatory",
+  "complexity": {
+    "gflops": 21.357572,
+    "parameters": 9429625,
+    "requires_grad_parameters_at_measurement": 0
+  },
+  "dataset": "dspcbsd_plus",
+  "environment": {
+    "git_commit": "63e4911ae1575956c8b37fba3f9484d01f212f8f",
+    "git_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "git_dirty": false,
+    "git_status": [],
+    "hostname": "3090",
+    "numpy": "1.26.4",
+    "nvidia_smi": "NVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB",
+    "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+    "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 16:42:22) [GCC 14.3.0]",
+    "scipy": "1.14.1",
+    "torch": "2.5.1+cu121",
+    "torchvision": "0.20.1+cu121",
+    "ultralytics": "8.4.50"
+  },
+  "environment_at_start": {
+    "git_commit": "63e4911ae1575956c8b37fba3f9484d01f212f8f",
+    "git_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "git_dirty": false,
+    "git_status": [],
+    "hostname": "3090",
+    "numpy": "1.26.4",
+    "nvidia_smi": "NVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB\nNVIDIA GeForce RTX 3090, 595.71.05, 24576 MiB",
+    "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+    "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 16:42:22) [GCC 14.3.0]",
+    "scipy": "1.14.1",
+    "torch": "2.5.1+cu121",
+    "torchvision": "0.20.1+cu121",
+    "ultralytics": "8.4.50"
+  },
+  "evaluation_image_count": 821,
+  "metrics": {
+    "ap_large": 0.37215353835085224,
+    "ap_medium": 0.5053173771591759,
+    "ap_small": 0.4570026669038992,
+    "ar_1": 0.38901055039798427,
+    "ar_10": 0.6093499188219181,
+    "ar_100": 0.6279239468819082,
+    "ar_large": 0.8176984126984127,
+    "ar_medium": 0.7137621556175013,
+    "ar_small": 0.5852807196176387,
+    "map50": 0.8132665054706275,
+    "map50_95": 0.4766487987461516,
+    "map75": 0.4717725879969229,
+    "per_class_ap50_95": {
+      "base_material_foreign_object": 0.44655627976263534,
+      "conductor_foreign_object": 0.4036899211885115,
+      "conductor_scratch": 0.43328228409757913,
+      "hole_breakout": 0.8367715139719545,
+      "mouse_bite": 0.3689310021201177,
+      "open": 0.45923469088770713,
+      "short": 0.49535415104409963,
+      "spur": 0.35930349723034233,
+      "spurious_copper": 0.4867158484124176
+    }
+  },
+  "model": "confirm_wsr_p3_r25_no_ll",
+  "pretrained": "yolo11s.pt",
+  "pretrained_transfer": {
+    "inserted_target_layers": [
+      5
+    ],
+    "loaded_parameter_fraction": 0.9981272957644274,
+    "loaded_parameters": 9457857,
+    "loaded_tensors": 493,
+    "loader": "layer_index_remap_v1",
+    "minimum_parameter_fraction": 0.99,
+    "missing_target_tensor_count": 28,
+    "missing_target_tensors": [
+      "model.24.cv3.0.2.bias",
+      "model.24.cv3.0.2.weight",
+      "model.24.cv3.1.2.bias",
+      "model.24.cv3.1.2.weight",
+      "model.24.cv3.2.2.bias",
+      "model.24.cv3.2.2.weight",
+      "model.5.context_router.dwt.weight",
+      "model.5.context_router.router.0.weight",
+      "model.5.context_router.router.1.bias",
+      "model.5.context_router.router.1.num_batches_tracked",
+      "model.5.context_router.router.1.running_mean",
+      "model.5.context_router.router.1.running_var",
+      "model.5.context_router.router.1.weight",
+      "model.5.context_router.router.3.bias",
+      "model.5.context_router.router.3.weight",
+      "model.5.context_router.wave_gate.0.weight",
+      "model.5.context_router.wave_gate.2.bias",
+      "model.5.context_router.wave_gate.2.weight",
+      "model.5.fusion.0.bias",
+      "model.5.fusion.0.weight",
+      "model.5.fusion.2.bias",
+      "model.5.fusion.2.weight",
+      "model.5.sparse_refine.context_scale",
+      "model.5.sparse_refine.mlp.0.weight",
+      "model.5.sparse_refine.mlp.2.weight",
+      "model.5.sparse_refine.neighborhood_logits",
+      "model.5.sparse_refine.norm.bias",
+      "model.5.sparse_refine.norm.weight"
+    ],
+    "pretrained": "yolo11s.pt",
+    "pretrained_sha256": "85a76fe86dd8afe384648546b56a7a78580c7cb7b404fc595f97969322d502d5",
+    "remapped_missing_tensor_count": 0,
+    "shape_mismatches": [
+      {
+        "source": "model.23.cv3.0.2.weight",
+        "source_shape": [
+          80,
+          128,
+          1,
+          1
+        ],
+        "target": "model.24.cv3.0.2.weight",
+        "target_shape": [
+          6,
+          128,
+          1,
+          1
+        ]
+      },
+      {
+        "source": "model.23.cv3.0.2.bias",
+        "source_shape": [
+          80
+        ],
+        "target": "model.24.cv3.0.2.bias",
+        "target_shape": [
+          6
+        ]
+      },
+      {
+        "source": "model.23.cv3.1.2.weight",
+        "source_shape": [
+          80,
+          128,
+          1,
+          1
+        ],
+        "target": "model.24.cv3.1.2.weight",
+        "target_shape": [
+          6,
+          128,
+          1,
+          1
+        ]
+      },
+      {
+        "source": "model.23.cv3.1.2.bias",
+        "source_shape": [
+          80
+        ],
+        "target": "model.24.cv3.1.2.bias",
+        "target_shape": [
+          6
+        ]
+      },
+      {
+        "source": "model.23.cv3.2.2.weight",
+        "source_shape": [
+          80,
+          128,
+          1,
+          1
+        ],
+        "target": "model.24.cv3.2.2.weight",
+        "target_shape": [
+          6,
+          128,
+          1,
+          1
+        ]
+      },
+      {
+        "source": "model.23.cv3.2.2.bias",
+        "source_shape": [
+          80
+        ],
+        "target": "model.24.cv3.2.2.bias",
+        "target_shape": [
+          6
+        ]
+      }
+    ],
+    "source_tensors": 499,
+    "target_parameters": 9475602,
+    "target_tensors": 521
+  },
+  "protocol_sha256": "91b757ae9dd9f86a9903024fba5d5f696f695f150aaee06294a0c9ff0aac9302",
+  "resumed": false,
+  "schema_version": 2,
+  "seed": 13,
+  "selection_split": "val",
+  "smoke": false,
+  "source_files_sha256": {
+    "algorithm/dwgsa.py": "785f15fad8092987e75a27d646d6f7acb9fab73beb1428a3c2562f5312c2bb33",
+    "algorithm/register.py": "0e0151de2cc6e31a06497f0c121bd3946c2a896c90078e07c704f6364fc67205",
+    "experiment/paper_b/ablation.py": "bac3fdf1ce6735cd3070974a1b479790d99cd242066a26faeb9a2bd7108aeea6",
+    "experiment/paper_b/coco_evaluator.py": "9f12077367071e4c510e7df9c140310a35d4bdba7b8d4b7be70a72881dfda893",
+    "experiment/paper_b/generated/models/confirmatory_component/confirm_wsr_p3_r25_no_ll.yaml": "52d947c75cffe380c113b6fb889e544c91bc158e30ae825b9289297e2229be02",
+    "experiment/paper_b/paper_b.yaml": "91b757ae9dd9f86a9903024fba5d5f696f695f150aaee06294a0c9ff0aac9302",
+    "experiment/paper_b/pretrained.py": "659691c6fc5b66c645509ba19ba8e6b81b5b7faa3edda761af682bff7f2e37bc",
+    "experiment/paper_b/split_dataset.py": "f778165c02a5c1909ca5ece5651422502fabce52b122e0c89b1e46d8297ad01b"
+  },
+  "test_evaluated": false,
+  "track": "confirmatory_component_validation",
+  "train_args": {
+    "amp": true,
+    "batch": 8,
+    "close_mosaic": 10,
+    "copy_paste": 0.0,
+    "cos_lr": true,
+    "deterministic": true,
+    "epochs": 80,
+    "fraction": 1.0,
+    "imgsz": 640,
+    "lr0": 0.01,
+    "lrf": 0.01,
+    "mixup": 0.0,
+    "momentum": 0.937,
+    "mosaic": 1.0,
+    "nbs": 64,
+    "optimizer": "SGD",
+    "patience": 15,
+    "plots": false,
+    "warmup_epochs": 3.0,
+    "weight_decay": 0.0005,
+    "workers": 2
+  },
+  "training_data_yaml": "/data/zjq/test/DWGSA-YOLO/experiment/paper_b/generated/datasets/dspcbsd_plus/validation_subsets/dataset_f1p0000_seed2027.yaml",
+  "training_data_yaml_sha256": "1591dffc5ed7a0442a01253a5f785f90f6962b9a47bdeacdd9cf1f9c8b4f6e17",
+  "training_subset": {
+    "base_train_images": 7387,
+    "dataset_yaml_sha256": "1591dffc5ed7a0442a01253a5f785f90f6962b9a47bdeacdd9cf1f9c8b4f6e17",
+    "fraction": 1.0,
+    "selected_class_image_counts": {
+      "base_material_foreign_object": 1061,
+      "conductor_foreign_object": 938,
+      "conductor_scratch": 1087,
+      "hole_breakout": 917,
+      "mouse_bite": 1333,
+      "open": 1031,
+      "short": 430,
+      "spur": 1581,
+      "spurious_copper": 964
+    },
+    "selected_train_images": 7387,
+    "strategy": "deterministic_greedy_multilabel_stratified",
+    "subset_seed": 2027,
+    "test_omitted": true,
+    "train_list_sha256": "4a3669cc407666a2eb343380eb5923c0866ac4375fb88356dbce1772e584fc88",
+    "val_list_sha256": "86dda463623da97250c5da2d8b42679eeadea0ae66e4720ce58bc9a3f1e4ba20",
+    "validation_images": 821
+  },
+  "unified_evaluation": {
+    "annotations": "/data/zjq/paperb_upload/confirmatory_component/repo/experiment/paper_b/generated/coco/dspcbsd_plus/annotations/instances_val.json",
+    "annotations_sha256": "46afc2b52525d57ed73ba179d8440ba0ce92bb079ad90f86252026bbe3a5b05e",
+    "evaluator": "pycocotools.COCOeval",
+    "image_count": 821,
+    "max_det": 100,
+    "metrics": {
+      "ap_large": 0.37215353835085224,
+      "ap_medium": 0.5053173771591759,
+      "ap_small": 0.4570026669038992,
+      "ar_1": 0.38901055039798427,
+      "ar_10": 0.6093499188219181,
+      "ar_100": 0.6279239468819082,
+      "ar_large": 0.8176984126984127,
+      "ar_medium": 0.7137621556175013,
+      "ar_small": 0.5852807196176387,
+      "map50": 0.8132665054706275,
+      "map50_95": 0.4766487987461516,
+      "map75": 0.4717725879969229,
+      "per_class_ap50_95": {
+        "base_material_foreign_object": 0.44655627976263534,
+        "conductor_foreign_object": 0.4036899211885115,
+        "conductor_scratch": 0.43328228409757913,
+        "hole_breakout": 0.8367715139719545,
+        "mouse_bite": 0.3689310021201177,
+        "open": 0.45923469088770713,
+        "short": 0.49535415104409963,
+        "spur": 0.35930349723034233,
+        "spurious_copper": 0.4867158484124176
+      }
+    },
+    "prediction_count": 19874,
+    "predictions": "/data/zjq/paperb_upload/confirmatory_component/repo/experiment/paper_b/generated/runs/confirmatory_component/91b757ae9dd9/dspcbsd_plus/confirm_wsr_p3_r25_no_ll/seed_13/val_predictions.json",
+    "predictions_sha256": "76e25fb89436bab6b4b89b6c624beee1ecb737ad2bd723c5cf50b5d9d9b4bef8",
+    "pycocotools": "unknown"
+  },
+  "weights": "/data/zjq/paperb_upload/confirmatory_component/repo/experiment/paper_b/generated/runs/confirmatory_component/91b757ae9dd9/dspcbsd_plus/confirm_wsr_p3_r25_no_ll/seed_13/weights/best.pt",
+  "weights_sha256": "c23bc240a0b485daa96bcc370dc38e9f94ad919a5ee39ac4ca94bc51c8e0fb32"
+}

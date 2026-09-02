@@ -11,7 +11,13 @@ except ImportError:
 
 
 LAYER_KEY = re.compile(r"^model\.(\d+)(\..+)$")
-ROUTER_CLASS_NAMES = {"DWGSARouter", "WSR", "WSRStable"}
+ROUTER_CLASS_NAMES = {
+    "DWGSARouter",
+    "WSR",
+    "WSRStable",
+    "MatchedConvResidual",
+    "ScaleOnlyControl",
+}
 
 
 def inserted_router_layers(model: Any) -> list[int]:

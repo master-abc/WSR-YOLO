@@ -164,6 +164,31 @@ ablation_track:
     - {name: route_p3_fixed, template: ../configs/wsr_yolo11s_p3.yaml, router_args: [256, 0.125, 0.25, true, true, true, false]}
     - {name: route_p3_equal_fusion, template: ../configs/wsr_yolo11s_p3.yaml, router_args: [256, 0.125, 0.25, true, true, false, true]}
 
+# Full-data, full-budget component controls added for the revision.  These are
+# confirmatory validation analyses rather than another architecture-selection
+# round: the final P3/25 configuration and all controls share the controlled
+# track's 80-epoch budget, training split, optimizer, augmentation, and seeds.
+confirmatory_component_track:
+  dataset: dspcbsd_plus
+  seeds: [13, 42, 3407]
+  pretrained: yolo11s.pt
+  train:
+    epochs: 80
+    fraction: 1.0
+    subset_seed: 2027
+    patience: 15
+    plots: false
+  models:
+    - {name: confirm_yolo11s, builtin_architecture: yolo11s.yaml}
+    - {name: confirm_wsr_p3_r25, architecture: ../configs/wsr_yolo11s_p3_r25.yaml}
+    - {name: confirm_wsr_p3_r25_no_hf, template: ../configs/wsr_yolo11s_p3_r25.yaml, router_args: [256, 0.25, 0.25, false, true, true, true, false]}
+    - {name: confirm_wsr_p3_r25_no_ll, template: ../configs/wsr_yolo11s_p3_r25.yaml, router_args: [256, 0.25, 0.25, true, false, true, true, false]}
+    - {name: confirm_wsr_p3_r25_fixed_haar, template: ../configs/wsr_yolo11s_p3_r25.yaml, router_args: [256, 0.25, 0.25, true, true, true, false, false]}
+    - {name: confirm_wsr_p3_r25_equal_fusion, template: ../configs/wsr_yolo11s_p3_r25.yaml, router_args: [256, 0.25, 0.25, true, true, false, true, false]}
+    - {name: confirm_wsr_p3_r25_random_route, template: ../configs/wsr_yolo11s_p3_r25.yaml, router_args: [256, 0.25, 0.25, true, true, true, true, true]}
+    - {name: confirm_matched_conv_p3, template: ../configs/wsr_yolo11s_p3_r25.yaml, module: MatchedConvResidual, module_args: [256, 24]}
+    - {name: confirm_scale_only_p3, template: ../configs/wsr_yolo11s_p3_r25.yaml, module: ScaleOnlyControl, module_args: [256, 0.5]}
+
 evaluation:
   backend: pycocotools.COCOeval
   # Low-confidence prediction export is explicitly chunked. A single-image

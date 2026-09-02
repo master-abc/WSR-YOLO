@@ -545,11 +545,13 @@ class DWGSARouter(nn.Module):
         use_ll=True,
         adaptive_fusion=True,
         learned_router=True,
+        random_router=False,
     ):
         super().__init__()
         self.channels = int(channels)
         self.route_ratio = float(route_ratio)
         self.adaptive_fusion = bool(adaptive_fusion)
+        self.random_router = bool(random_router)
         half = max(self.channels // 2, 16)
         if half * 2 != self.channels:
             raise ValueError("DWGSARouter requires an even channel count")
@@ -597,6 +599,13 @@ class DWGSARouter(nn.Module):
         projected = self.project(x)
         wave, sparse = projected.chunk(2, dim=1)
         route_logits, wave_attention, hf_energy = self.context_router(wave)
+        # Older frozen WSR checkpoints predate the random-routing control and
+        # therefore do not contain this instance attribute. Defaulting to the
+        # original learned route keeps those checkpoints loadable.
+        if getattr(self, "random_router", False):
+            # Parameter-matched routing control: retain the complete wave branch
+            # and sparse compute budget, but break image-conditioned selection.
+            route_logits = torch.rand_like(route_logits)
         sparse_out, route_confidence, route_mask, route_scores = self.sparse_refine(
             sparse, route_logits, capture_diagnostics=self.diagnostics_enabled
         )
@@ -696,15 +705,16 @@ class WSRStable(DWGSARouter):
 
         wave, sparse = x.chunk(2, dim=1)
         route_logits, wave_attention, hf_energy = self.context_router(wave)
+        diagnostics_enabled = getattr(self, "diagnostics_enabled", False)
         sparse_out, route_confidence, route_mask, route_scores = self.sparse_refine(
-            sparse, route_logits, capture_diagnostics=self.diagnostics_enabled
+            sparse, route_logits, capture_diagnostics=diagnostics_enabled
         )
 
         wave_delta = wave * wave_attention
         sparse_delta = sparse_out - sparse
         global_context = F.adaptive_avg_pool2d(x, 1).flatten(1)
         hf_dispersion = hf_energy.mean(dim=(1, 2, 3), keepdim=False).unsqueeze(1)
-        if self.adaptive_fusion:
+        if getattr(self, "adaptive_fusion", True):
             weights = self.fusion(
                 torch.cat([global_context, hf_dispersion, route_confidence], dim=1)
             )
@@ -716,12 +726,54 @@ class WSRStable(DWGSARouter):
         sparse_scale = (weights[:, 1] * residual_scale[1]).view(-1, 1, 1, 1)
         out = x + torch.cat([wave_delta * wave_scale, sparse_delta * sparse_scale], dim=1)
 
-        if self.diagnostics_enabled:
+        if diagnostics_enabled:
             self.last_route_mask = route_mask.detach()
             self.last_route_scores = route_scores.detach()
             self.last_wave_attention = wave_attention.detach()
             self.last_fusion_weights = weights.detach()
         return out
+
+
+class MatchedConvResidual(nn.Module):
+    """Ordinary local-convolution control with approximately WSR's parameters.
+
+    At 256 input channels and the default hidden width this block adds 13,113
+    trainable parameters, within 2% of a 13,342-parameter P3 WSR.  A zero-
+    initialised final BN makes insertion compatible with pretrained features.
+    """
+
+    def __init__(self, channels, hidden=24):
+        super().__init__()
+        channels = int(channels)
+        hidden = int(hidden)
+        self.block = nn.Sequential(
+            nn.Conv2d(channels, hidden, 1, bias=False),
+            nn.BatchNorm2d(hidden),
+            nn.SiLU(inplace=True),
+            nn.Conv2d(hidden, hidden, 3, padding=1, groups=hidden, bias=False),
+            nn.BatchNorm2d(hidden),
+            nn.SiLU(inplace=True),
+            nn.Conv2d(hidden, channels, 1, bias=False),
+            nn.BatchNorm2d(channels),
+        )
+        nn.init.zeros_(self.block[-1].weight)
+        nn.init.zeros_(self.block[-1].bias)
+        self.residual_scale = nn.Parameter(torch.tensor(1.0))
+
+    def forward(self, x):
+        return x + self.residual_scale.to(dtype=x.dtype) * self.block(x)
+
+
+class ScaleOnlyControl(nn.Module):
+    """Learnable scalar-rescaling control for legacy WSR's non-identity start."""
+
+    def __init__(self, channels, initial_scale=0.5):
+        super().__init__()
+        self.channels = int(channels)
+        self.scale = nn.Parameter(torch.tensor(float(initial_scale)))
+
+    def forward(self, x):
+        return x * (1.0 + self.scale.to(dtype=x.dtype))
 
 
 class DWGSA(nn.Module):
