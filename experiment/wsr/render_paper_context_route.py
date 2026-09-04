@@ -63,15 +63,15 @@ def render() -> None:
     plt.rcParams.update(
         {
             "font.family": "serif",
-            "font.size": 7.2,
-            "axes.titlesize": 7.6,
+            "font.size": 7.8,
+            "axes.titlesize": 8.1,
             "axes.titleweight": "semibold",
-            "axes.labelsize": 7.1,
+            "axes.labelsize": 7.5,
             "axes.edgecolor": INK,
             "axes.linewidth": 0.6,
-            "legend.fontsize": 6.3,
-            "xtick.labelsize": 6.5,
-            "ytick.labelsize": 6.5,
+            "legend.fontsize": 6.8,
+            "xtick.labelsize": 7.0,
+            "ytick.labelsize": 7.0,
             "xtick.major.size": 2.5,
             "ytick.major.size": 0.0,
             "xtick.major.width": 0.6,
@@ -96,7 +96,12 @@ def render() -> None:
         ("rf_detr_m", "RF-DETR", (-34, 6)),
     ]
 
-    figure, (left, right) = plt.subplots(1, 2, figsize=(7.02, 2.32), gridspec_kw={"width_ratios": [1.05, 1.35]})
+    figure, (left, right) = plt.subplots(
+        2,
+        1,
+        figsize=(3.48, 3.18),
+        gridspec_kw={"height_ratios": [1.0, 1.12]},
+    )
     for model, label, label_offset in models:
         x, y, error = model_summary(sota_root, model)
         left.errorbar(x, y, yerr=error, fmt="o", ms=3.7, color=BLUE, mec="white", mew=0.35, capsize=1.8, lw=0.65, zorder=3)
@@ -105,13 +110,13 @@ def render() -> None:
             (x, y),
             xytext=label_offset,
             textcoords="offset points",
-            fontsize=5.7,
+            fontsize=6.2,
             va="center",
         )
 
     x, y, error = model_summary(controlled_root, "wsr_yolo11s_p3_r25")
     left.errorbar(x, y, yerr=error, fmt="*", ms=7.5, color=ORANGE, mec="white", mew=0.3, capsize=1.8, lw=0.7, zorder=4)
-    left.annotate("WSR-11s", (x, y), xytext=(5, 5), textcoords="offset points", fontsize=6.2, va="center")
+    left.annotate("WSR-11s", (x, y), xytext=(5, 5), textcoords="offset points", fontsize=6.5, va="center")
     left.set_title("(a) Accuracy–size context", loc="left")
     left.set_xlabel("Parameters (M)")
     left.set_ylabel(r"DsPCBSD+ AP$_{50:95}$")
@@ -154,7 +159,7 @@ def render() -> None:
     for axis in (left, right):
         axis.spines[["top", "right"]].set_visible(False)
         axis.set_axisbelow(True)
-    figure.subplots_adjust(left=0.075, right=0.995, bottom=0.21, top=0.88, wspace=0.48)
+    figure.subplots_adjust(left=0.31, right=0.975, bottom=0.11, top=0.92, hspace=0.68)
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     figure.savefig(OUTPUT)
     plt.close(figure)

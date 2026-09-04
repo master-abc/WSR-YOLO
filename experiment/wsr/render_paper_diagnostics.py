@@ -33,15 +33,15 @@ def apply_style() -> None:
     plt.rcParams.update(
         {
             "font.family": "serif",
-            "font.size": 6.7,
-            "axes.titlesize": 7.2,
+            "font.size": 7.4,
+            "axes.titlesize": 7.8,
             "axes.titleweight": "semibold",
-            "axes.labelsize": 6.7,
+            "axes.labelsize": 7.2,
             "axes.edgecolor": INK,
             "axes.linewidth": 0.6,
-            "legend.fontsize": 5.8,
-            "xtick.labelsize": 5.9,
-            "ytick.labelsize": 5.9,
+            "legend.fontsize": 6.5,
+            "xtick.labelsize": 6.6,
+            "ytick.labelsize": 6.6,
             "xtick.major.size": 2.3,
             "ytick.major.size": 0.0,
             "xtick.major.width": 0.6,
@@ -228,7 +228,7 @@ def draw_tag(axis: plt.Axes, box: list[float], text_value: str, color: str) -> N
         y1 - 1 if near_bottom else y1 + 1,
         text_value,
         color="white",
-        fontsize=3.9,
+        fontsize=5.0,
         ha="right" if align_right else "left",
         va="bottom" if near_bottom else "top",
         bbox={"facecolor": color, "edgecolor": "none", "alpha": 0.92, "pad": 0.55},
@@ -303,12 +303,12 @@ def render_qualitative(source_dir: Path) -> None:
                 ha="right",
                 va="top",
                 color="white",
-                fontsize=4.2,
+                fontsize=5.1,
                 bbox={"facecolor": "black", "edgecolor": "none", "alpha": 0.78, "pad": 0.7},
             )
 
     for column, title in enumerate(("Ground truth", "YOLO11s", "WSR-YOLO11s")):
-        axes[0, column].set_title(title, fontsize=6.6, fontweight="semibold", pad=2.5)
+        axes[0, column].set_title(title, fontsize=7.2, fontweight="semibold", pad=2.5)
     figure.subplots_adjust(left=0.005, right=0.995, bottom=0.005, top=0.91, wspace=0.035, hspace=0.035)
     figure.savefig(FIGURES / "qualitative_operating_point.png", dpi=300)
     plt.close(figure)
@@ -377,7 +377,7 @@ def render_false_alarm() -> None:
             linewidths=0.35,
             zorder=3,
         )
-        right.annotate(name, (fpr, recall), xytext=offset_by_name[name], textcoords="offset points", fontsize=6.0)
+        right.annotate(name, (fpr, recall), xytext=offset_by_name[name], textcoords="offset points", fontsize=6.8)
     right.set_xscale("log")
     right.set_xlim(0.45, 50)
     right.set_ylim(76.5, 97.5)

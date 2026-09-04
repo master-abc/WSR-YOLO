@@ -7,10 +7,11 @@
 \usepackage{tikz}
 \usepackage{microtype}
 \usepackage{stfloats}
+\usepackage{balance}
+\usepackage[superscript]{cite}
 \usetikzlibrary{arrows.meta,positioning,calc}
-\usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
+\usepackage[colorlinks=true,linkcolor=black,citecolor=black,urlcolor=black]{hyperref}
 
-\newcommand{\module}{WSR}
 \definecolor{wsrblue}{HTML}{0072B2}
 \definecolor{wsrorange}{HTML}{D55E00}
 \tikzset{
@@ -25,18 +26,26 @@
   skipflow/.style={flow,draw=black!55,densely dotted},
   edgelabel/.style={font=\tiny,fill=white,inner sep=1pt,text=black!70}
 }
-\setlength{\textfloatsep}{6pt plus 2pt minus 2pt}
-\setlength{\dbltextfloatsep}{6pt plus 2pt minus 2pt}
-\setlength{\floatsep}{5pt plus 2pt minus 2pt}
-\setlength{\intextsep}{5pt plus 2pt minus 2pt}
-\setlength{\abovecaptionskip}{3pt}
+\setlength{\textfloatsep}{5pt plus 2pt minus 2pt}
+\setlength{\dbltextfloatsep}{5pt plus 2pt minus 2pt}
+\setlength{\floatsep}{4pt plus 2pt minus 2pt}
+\setlength{\intextsep}{4pt plus 2pt minus 2pt}
+\setlength{\abovecaptionskip}{2pt}
 \setlength{\belowcaptionskip}{0pt}
 \renewcommand{\arraystretch}{0.94}
+\renewcommand{\figurename}{Figure}
+\renewcommand{\thetable}{\arabic{table}}
+\renewcommand{\citeleft}{[}
+\renewcommand{\citeright}{]}
+\renewcommand{\IEEEkeywordsname}{Keywords}
+\makeatletter
+\def\@citess#1{\mbox{$\m@th^{\hbox{\OverciteFont{[#1]}}}$}}
+\makeatother
 \sisetup{detect-all,group-separator={,},group-minimum-digits=4,uncertainty-mode=separate}
 
 \begin{document}
 
-\title{WSR-YOLO: Wavelet-Conditioned Sparse Routing for PCB Defect Detection}
+\title{WSR-YOLO for PCB Defect Image Processing\\with Wavelet-Conditioned Sparse Routing}
 \author{
 \IEEEauthorblockN{Jiefeng Liang\textsuperscript{a},
 Lihua Luo\textsuperscript{a,b,*}, Sijin Tan\textsuperscript{a},
@@ -45,61 +54,57 @@ and Zhaofeng Cai\textsuperscript{a}}
 \IEEEauthorblockA{\textsuperscript{a}Department of Computing, Guangdong University of Science and Technology, Dongguan 523083, China}
 \IEEEauthorblockA{\textsuperscript{b}Faculty of Computer and Mathematical Sciences, Universiti Teknologi MARA, 40450 Shah Alam, Selangor, Malaysia}
 \IEEEauthorblockA{\textsuperscript{*}Corresponding author: Lihua Luo, 260423630@qq.com}
-\IEEEauthorblockA{Project repository: \url{https://github.com/master-abc/WSR-YOLO}}
+\IEEEauthorblockA{Project repository: \href{https://github.com/master-abc/WSR-YOLO}{github.com/master-abc/WSR-YOLO}}
 }
 \maketitle
 
 \begin{abstract}
-Industrial detection studies often conflate informative routing, arithmetic sparsity, accuracy, and deployed efficiency. We audit them separately using WSR, which ranks P3 features with fixed Haar responses and refines an exact top-$k$ budget. On DsPCBSD+, seven paired runs give 46.69$\pm$0.72 AP$_{50:95}$ versus 46.54$\pm$0.36 for YOLO11s; the 0.15-point difference is nonsignificant ($p=0.8125$). Three descriptive DeepPCB pairs gain 4.20 points but increase alarms on defect-free templates. At a 25\% budget, routes are enriched inside boxes by 3.16$\times$/3.55$\times$ on the two datasets, although spatial priors explain much of the primary enrichment and matched convolution reproduces the validation gain. WSR adds 13.3K parameters and 0.038 GFLOPs but is 1.18--1.21$\times$ slower. Post-hoc negative-aware training lowers DeepPCB board-FPR from 53.5\% to 27.5\%; an exploratory paired-reference detector reaches 1.4\% and 0.959 F1 under a changed input contract. Thus WSR verifies image-dependent allocation, not a reliable accuracy or systems advantage, and exposes why route overlap, FLOPs, positive-only AP, and component attribution need separate controls.
+Traditional image processing for industrial visual inspection relies on hand-crafted filtering, thresholding, and edge operators, whereas WSR-YOLO represents a modern deep-learning-based approach. We audit wavelet-conditioned sparse routing (WSR), which ranks P3 features with fixed Haar responses and refines an exact top-$k$ budget. On DsPCBSD+, seven paired runs yield 46.69$\pm$0.72 AP$_{50:95}$ versus 46.54$\pm$0.36 for YOLO11s; the 0.15-point difference is nonsignificant ($p=0.8125$). Three descriptive DeepPCB pairs gain 4.20 points but increase alarms on defect-free templates. At a 25\% budget, routes are enriched inside boxes by 3.16$\times$/3.55$\times$ on the two datasets, although spatial priors explain much of the primary enrichment and matched convolution reproduces the validation gain. WSR adds 13.3K parameters and 0.038 GFLOPs but is 1.18--1.21$\times$ slower. Negative-aware training lowers DeepPCB board-FPR from 53.5\% to 27.5\%; an exploratory paired-reference detector reaches 1.4\% and 0.959 F1 under a changed input contract. These results separate route overlap, arithmetic cost, accuracy, and deployment behavior instead of treating them as interchangeable evidence.
 \end{abstract}
 
 \begin{IEEEkeywords}
-PCB defect detection, sparse routing, empirical audit, wavelets, false alarms
+image processing, PCB defect detection, sparse routing, wavelets, false alarms
 \end{IEEEkeywords}
 
 \section{Introduction}
-Automated optical inspection must find small, low-contrast defects among repeated traces and pads without alarming on normal boards. The challenge is not only representation: an industrial detector must retain thin discontinuities, distinguish them from legitimate high-frequency copper patterns, and sustain predictable behavior at a fixed operating point. Conventional positive-only benchmarks emphasize localization on defective images, whereas a deployed line also sees many normal boards for which one false detection may trigger manual review. Sparse frequency-aware modules appear attractive, yet route overlap need not improve detection, nominal sparsity need not accelerate hardware, positive-only AP can hide false alarms, and generic capacity can mimic a specialized cue.
+Automated optical inspection must find small, low-contrast defects among repeated traces and pads without alarming on normal boards. Conventional positive-only benchmarks emphasize localization on defective images, while a production line also sees many normal boards for which one false detection may trigger review. Frequency-aware sparse modules are attractive, but a favorable route map or FLOP count does not establish accuracy, speed, or operational reliability.
 
-We study these distinctions through wavelet-conditioned sparse routing (WSR). Fixed Haar responses rank P3 locations, and gather--refine--scatter applies a channel transform to $k=\operatorname{round}(\rho HW)$ tokens rather than masking a dense transform. The architecture therefore poses four separable hypotheses: selected cells should be defect-enriched; that allocation should improve held-out accuracy; its sparse arithmetic should reduce measured latency; and any gain should depend on the proposed cues rather than added capacity. We treat WSR as an auditable probe, testing same-budget route controls, paired-seed accuracy, order-balanced latency, negative inputs, and matched components. This claim-by-claim design is important because a plausible heat map, a favorable seed, or a lower FLOP count cannot establish the other hypotheses.
-
-\textbf{Contributions.} (1) An exact-budget P3/8 probe separates arithmetic sparsity from realized speed. (2) Random, spatial, activation, fixed-Haar, cross-image, matched-convolution, and fusion controls test routing and attribution. (3) Defect-free templates expose a blind spot of positive-only PCB evaluation and separate target-only mitigation from changed-contract reference assistance. (4) A leakage-audited protocol reports null and adverse findings: the primary gain is nonsignificant and no variant passes the joint accuracy--latency gate.
+We therefore use WSR as an auditable probe. Fixed Haar responses rank P3 locations, and gather--refine--scatter applies a channel transform only to $k=\operatorname{round}(\rho HW)$ tokens. We test four distinct questions: whether selected cells are defect-enriched, whether the allocation improves held-out accuracy, whether sparse arithmetic reduces measured latency, and whether any gain is unique to the proposed cues. The main contribution is a controlled evaluation that reports both positive and adverse results: same-budget routing controls, paired-seed accuracy, device timing, defect-free inputs, and matched-capacity components.
 
 \section{Related Work}
-Detection spans Faster R-CNN/FPN~\cite{fasterrcnn,fpn}, set prediction~\cite{detr,deformabledetr}, and learned proposals~\cite{sparsercnn}. Their sparsity targets samples, queries, or multiscale proposals; WSR instead sparsifies one channel-refinement operator while preserving the detector's high-resolution feature lattice. Contemporary context uses pinned YOLOv10/11/12/26~\cite{yolov10,yolo11,yolov12,yolo26}, RT-DETRv2~\cite{rtdetrv2}, D-FINE~\cite{dfine}, DEIM~\cite{deim}, and RF-DETR~\cite{rfdetr} implementations. We do not interpret this cross-family comparison as an ablation: each official model retains its architecture-appropriate training recipe, so it locates WSR on the accuracy--size landscape rather than identifying a causal advantage.
+Detection architectures span region proposals~\cite{fasterrcnn}, set prediction~\cite{detr}, sparse learned proposals~\cite{sparsercnn}, and compact YOLO/DETR families~\cite{yolo11,dfine}. PCB protocols differ materially: DeepPCB supplies aligned target/template pairs~\cite{deeppcb}, DsPCBSD+ has nine production-AOI classes~\cite{dspcbsd}, and PCB-IND adds illumination and long-tail variation~\cite{pcbind}. PCB-YOLO and YOLO-HMC use different evaluators~\cite{pcbyolo,yolohmc}, so headline scores are contextual.
 
-PCB protocols differ materially. DeepPCB pairs aligned targets and clean templates~\cite{deeppcb}; TDD-Net uses an augmented six-class set~\cite{tddnet}; DsPCBSD+ supplies nine production-AOI classes~\cite{dspcbsd}; and PCB-IND adds real illumination and long-tail variation~\cite{pcbind} but postdates our frozen protocol. PCB-YOLO, YOLO-HMC, SRN-Net, and PCB-MMF use different splits, input contracts, or evaluators~\cite{pcbyolo,yolohmc,srnnet,pcbmmf}, so their headline results are not pooled with ours. This distinction matters because paired reference images can suppress board-specific texture but alter the information available at inference, while augmentation-derived test sets can inflate the apparent sample size. We therefore use only same-protocol runs for statistical comparisons and present recent methods as context.
+Wavelets have been used for anti-aliasing and frequency attention~\cite{wavecnet,fcanet}; dynamic token methods allocate computation by input~\cite{dynamicvit}. These lines motivate WSR but also expose a systems caveat: scoring, sorting, indexing, and memory movement can dominate the skipped arithmetic. Our design therefore separates algorithmic sparsity from measured speed.
 
-Frequency transforms suppress aliasing, drive channel attention, or enhance detection~\cite{wavecnet,fcanet,hwanet,waveletyolo}. Conditional computation adapts depth, blocks, gates, or tokens~\cite{sact,sbnet,dynamicconv,tokenlearner,dynamicvit,evit}. These lines also warn against equating algorithmic sparsity with speed: scoring, sorting, memory movement, and irregular kernels may dominate a small skipped transform. WSR instead retains the dense P3 lattice and gathers exactly $k$ locations only for its channel MLP; our question is whether that frequency-conditioned budget is useful, unique, and fast under direct controls and device timing.
-
-\section{Audited Routing Probe}
-\subsection{Wavelet-Conditioned Routing}
-Let $\mathbf X\in\mathbb R^{C\times H\times W}$ be the P3/8 feature. We split it into wave and refinement tensors $\mathbf X_w,\mathbf X_r$ with $C/2$ channels each, avoiding dense $C\times C$ projections. Fixed grouped stride-two Haar convolution gives
+\section{Wavelet-Conditioned Sparse Routing}
+Let $\mathbf X\in\mathbb R^{C\times H\times W}$ be the P3/8 feature, split into wave and refinement tensors $\mathbf X_w,\mathbf X_r$. Fixed grouped stride-two Haar convolution gives
 \begin{equation}
-(\mathbf{LL},\mathbf{LH},\mathbf{HL},\mathbf{HH})=\mathcal H(\mathbf X_w),
+(\mathbf{LL},\mathbf{LH},\mathbf{HL},\mathbf{HH})=\mathcal H(\mathbf X_w).
 \end{equation}
-using separable vectors $[1,1]/\sqrt2$ and $[-1,1]/\sqrt2$. We channel-average the absolute detail bands into $E_{hf}$, retain $E_{ll}=\operatorname{mean}_c|\mathbf{LL}|$, and form the local low-frequency residual $G_{ll}=|E_{ll}-\operatorname{AvgPool}_{3\times3}(E_{ll})|$. After upsampling and per-image normalization, a small convolutional router predicts
+Channel-averaged detail energy $E_{hf}$, low-frequency magnitude $E_{ll}$, and a local residual $G_{ll}$ are normalized and passed to a small router:
 \begin{equation}
 \mathbf S=R_\theta([\bar E_{hf};\bar E_{ll};\bar G_{ll}])
 +\log(1+\bar E_{hf}+\bar G_{ll}).
 \end{equation}
-The additive fixed term supplies a meaningful initial ranking. The fixed filters are stored as nontrainable grouped-convolution buffers; odd feature sizes are reflect-padded at the lower or right boundary. $R_\theta$ is a $3\times3$ convolution from three cues to 16 channels, followed by normalization, SiLU, and a $1\times1$ projection. Flattening spatial locations, we select
+Flattening spatial locations, the router selects an exact budget
 \begin{equation}
 \mathcal I=\operatorname{TopK}(\mathbf S,k),\quad
 k=\min(HW,\max(4,\operatorname{round}(\rho HW))).
 \end{equation}
+Figure~\ref{fig:wsr} summarizes the data and control paths.
 
-\begin{figure*}[t]
+\begin{figure*}[!t]
 \centering
-\resizebox{0.88\textwidth}{!}{%
+\resizebox{0.82\textwidth}{!}{%
 \begin{tikzpicture}[font=\scriptsize,node distance=3mm and 5mm]
   \node[block] (p3) {P3/8 feature\\$\mathbf X$};
   \node[block,right=7mm of p3] (split) {channel split};
-  \node[wave,above right=4mm and 9mm of split] (haar) {fixed Haar cues\\+ learned wave gate};
+  \node[wave,above right=4mm and 9mm of split] (haar) {fixed Haar cues\\+ wave gate};
   \node[wave,right=8mm of haar] (router) {dense router\\scores $\mathbf S$};
   \node[sparse,below right=4mm and 9mm of split] (context) {shared $3{\times}3$\\context};
   \node[sparse,right=8mm of context] (topk) {top-$k$\\gather};
-  \node[sparse,right=8mm of topk] (mlp) {score-gated LN/MLP\\+ scatter};
-  \node[block,right=10mm of mlp,yshift=8mm] (fuse) {softmax weights\\weighted concat};
+  \node[sparse,right=8mm of topk] (mlp) {gated LN/MLP\\+ scatter};
+  \node[block,right=10mm of mlp,yshift=8mm] (fuse) {softmax\\fusion};
   \node[sum,right=5mm of fuse] (add) {$+$};
   \node[block,right=5mm of add] (out) {output\\$\mathbf Y$};
   \coordinate (waveleft) at ($(haar.north)+(0,4mm)$);
@@ -111,269 +116,210 @@ k=\min(HW,\max(4,\operatorname{round}(\rho HW))).
   \draw[waveflow] (split.north) |- (haar.west);
   \draw[sparseflow] (split.south) |- (context.west);
   \draw[controlflow] (haar.east)--(router.west);
-  \draw[controlflow] (router.south)--node[edgelabel,right]{routing scores}(topk.north);
+  \draw[controlflow] (router.south)--(topk.north);
   \draw[sparseflow] (context.east)--(topk.west);
   \draw[sparseflow] (topk.east)--(mlp.west);
-  \draw[waveflow] (haar.north)--(waveleft)--node[edgelabel,above]{gated wave}(waveright)--(fuse.north);
+  \draw[waveflow] (haar.north)--(waveleft)--(waveright)--(fuse.north);
   \draw[sparseflow] (mlp.east)--(sparseturn)|-(fuse.west);
-  \draw[skipflow] (p3.south)--(skipleft)--node[edgelabel,below]{identity skip}(skipright)--(add.south);
+  \draw[skipflow] (p3.south)--(skipleft)--node[edgelabel,below]{identity}(skipright)--(add.south);
   \draw[flow] (fuse.east)--(add.west);
   \draw[flow] (add.east)--(out.west);
 \end{tikzpicture}}
-\caption{Compact WSR flow. Solid colored edges carry branch features, orange dashed edges carry routing and control signals, and the dotted edge is the identity skip. Fixed Haar cues drive both the learned wave gate and the dense router; only the score-gated channel MLP uses the exact $\rho HW$ budget. Softmax branch weights use global context, mean HF energy, and selected-route confidence.}
+\caption{Compact WSR flow. Fixed Haar cues drive wave gating and dense routing; only the gathered channel MLP uses the exact $\rho HW$ budget.}
 \label{fig:wsr}
 \end{figure*}
 
-\subsection{Sparse Refinement and Fusion}
-A learned softmax-normalized $3\times3$ kernel supplies dense depthwise context over $\mathbf X_r$; only values at $\mathcal I$ are gathered. For flattened tokens $\mathbf T$ and gathered context $\tilde{\mathbf T}_{\mathcal I}$,
+A shared softmax-normalized $3\times3$ kernel provides context over $\mathbf X_r$; only indices $\mathcal I$ are gathered. For token tensor $\mathbf T$,
 \begin{equation}
 \mathbf T'_{\mathcal I}=\mathbf T_{\mathcal I}+\sigma(\mathbf S_{\mathcal I})\odot
 \operatorname{MLP}\!\left(\operatorname{LN}(\mathbf T_{\mathcal I}+\gamma(\tilde{\mathbf T}_{\mathcal I}-\mathbf T_{\mathcal I}))\right).
 \end{equation}
-The bias-free two-layer MLP has hidden width $\max(C/8,16)$; unrouted tokens remain unchanged before branch fusion. The context kernel is shared across channels, constrained by softmax to be nonnegative and sum to one, and applied with replicate padding. This avoids a dense unfold tensor while retaining local information at gathered positions. The MLP costs $O(\rho HWC^2)$ rather than $O(HWC^2)$, although the $O(9HWC)$ context and routing operations stay dense. Hard indices receive no gradient; the router learns only through selected confidence factors and detector losses, without a straight-through estimator or auxiliary routing loss. This gradient path motivates the fixed-router controls below.
+Unrouted tokens remain unchanged. A two-way softmax gate fuses the wave and refinement branches with an identity skip. The formal model inserts one block at P3 with $\rho=0.25$; hard indices receive no gradient, while selected confidence factors and detector losses train the router.
 
-Directional Haar magnitudes also produce a sigmoid wave gate $A_w$, giving $\mathbf X'_w=\mathbf X_w\odot(1+A_w)$. A two-way softmax gate uses global context, mean high-frequency energy, and selected-route confidence to fuse the branches:
-\begin{equation}
-\mathbf Y=\mathbf X+[\alpha_w\mathbf X'_w;\alpha_r\mathbf X'_r],
-\qquad \alpha_w+\alpha_r=1.
-\end{equation}
-The formal model inserts one block at P3 with $\rho=0.25$. A later identity-preserving variant fuses near-zero-initialized branch deltas and replaces batch normalization in the router with group normalization; it is evaluated only in validation-locked engineering rounds and never replaces the formal test model.
-
-\section{Audit Design and Experiments}
+\section{Experiments}
 \subsection{Protocol}
-DsPCBSD+~\cite{dspcbsd} has 10,259 images, 20,276 boxes, and nine classes. We split its 8,208 training images into 7,387/821 train/validation and lock the official 2,051-image validation set as test. DeepPCB~\cite{deeppcb} uses 850/150 official-training images and all 500 test targets. Formal AP uses only positive targets; clean templates are audited separately.
+DsPCBSD+ has 10,259 images and 20,276 boxes. Its 8,208 training images are split 7,387/821 for train/validation, and the official 2,051-image validation set is locked as test. DeepPCB uses 850/150 training/validation targets and all 500 official test targets; clean templates are audited separately. Both models start from the same YOLO11s checkpoint and use 640-pixel input, at most 80 epochs, deterministic SGD, matched augmentation, and paired seeds. Seven DsPCBSD+ pairs form the primary analysis; three DeepPCB pairs are descriptive. One pinned COCO evaluator~\cite{coco} reports AP, and batch-one RTX 3090 timing uses synchronized ABBA/BAAB cycles.
+
+Before training, we validate paths, categories, boxes, file hashes, repeated pseudo-boxes, and perceptual similarity. Table~\ref{tab:data} reports the resulting frozen partitions. No exact cross-split duplicate is found, although repeated layouts yield conservative similarity candidates and missing board/lot identifiers prevent a categorical leakage-free claim. Checkpoints below 99\% pretrained-key transfer are rejected. The P3/25\% model is selected using validation data before test access; later component, robustness, and false-alarm studies remain explicitly diagnostic or exploratory and cannot replace the registered comparison.
 
 \begin{table}[t]
 \centering
-\caption{Frozen partitions after conversion and validation.}
+\caption{Frozen dataset partitions after conversion and validation.}
 \label{tab:data}
-\begingroup
-\renewcommand{\arraystretch}{1.06}
-\fontsize{7.5}{8.3}\selectfont
-\setlength{\tabcolsep}{5pt}
-\begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}llS[table-format=4.0]S[table-format=5.0]@{}}
+\fontsize{7.5}{8.2}\selectfont
+\setlength{\tabcolsep}{4.5pt}
+\begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}llrr@{}}
 \toprule
-Dataset & Split & {Images} & {Boxes} \\
+Dataset & Split & Images & Boxes \\
 \midrule
-\multirow{3}{*}{DsPCBSD+} & train & 7387 & 14590 \\
- & validation & 821 & 1594 \\
- & locked test & 2051 & 4092 \\
-\addlinespace[1.5pt]
-\multirow{3}{*}{DeepPCB} & train & 850 & 5870 \\
- & validation & 150 & 1003 \\
- & official test & 500 & 3140 \\
+\multirow{3}{*}{DsPCBSD+} & Train & 7,387 & 14,590 \\
+ & Validation & 821 & 1,594 \\
+ & Locked test & 2,051 & 4,092 \\
+\addlinespace[1pt]
+\multirow{3}{*}{DeepPCB} & Train & 850 & 5,870 \\
+ & Validation & 150 & 1,003 \\
+ & Official test & 500 & 3,140 \\
 \bottomrule
 \end{tabular*}
-\endgroup
 \end{table}
 
-We validate boxes, classes, paths, SHA-256 hashes, repeated pseudo-boxes, and perceptual similarity. Exact cross-split duplicates are zero; a conservative difference-hash/thumbnail screen flags 245 DsPCBSD+ and 14 DeepPCB candidate pairs. Repeated layouts may trigger it, but absent board/lot IDs prevent a categorical leakage-free claim.
+For selected cells $M_i$, rasterized box cells $B_i$, and grid size $N_i$, route recall is $|M_i\cap B_i|/|B_i|$ and enrichment divides that recall by $|M_i|/N_i$. Board-FPR is the fraction of clean templates with at least one retained detection. Paired seeds are the sampling unit for accuracy; latency cycles are the unit for device timing.
 
-Both models start from the same YOLO11s checkpoint and use 640-pixel input, at most 80 epochs, deterministic SGD with cosine decay, batch 8/nominal 64, patience 15, and matched augmentation. Pairing each WSR run with a baseline at the same seed removes part of the optimizer and data-order variation. We use seven paired DsPCBSD+ seeds; three DeepPCB pairs are descriptive. Shifted pretrained keys are remapped and runs below 99\% transfer are rejected. The prespecified P3/25\% model must pass a three-seed validation gate; test labels never select checkpoints or architectures, and post-hoc tracks cannot promote a candidate. We preserve this hierarchy even when a later diagnostic produces a larger number: registered test evidence, validation-only engineering, and exploratory mitigation answer different questions.
+\subsection{Accuracy}
+Table~\ref{tab:main} reports the architecture-controlled test results. On DsPCBSD+, WSR wins four of seven seeds but gains only 0.155 AP points, with paired $p=0.8125$, $d_z=0.207$, and 95\% interval $[-0.535,0.844]$. DeepPCB gains 4.196 points across three wins, yet the exact test is $p=0.25$ ($p_{\mathrm{Holm}}=0.50$); with $n=3$, this cannot support a confirmatory claim.
 
-One pinned COCO evaluator~\cite{coco} retains AP, AR, size, and class metrics. We report mean$\pm$sample SD, paired 95\% $t$ intervals, exact two-sided Wilcoxon tests, and cross-dataset Holm correction. Three-seed component controls are validation-only and descriptive. Batch-one RTX 3090 latency uses one process, 12 alternating ABBA/BAAB cycles, and 600 synchronized observations per condition.
-
-\subsection{Metrics and Evidential Roles}
-For image $i$, let $M_i$ be the selected routing cells, $B_i$ the union of rasterized ground-truth box cells, and $N_i=H_iW_i$. We report route recall $r_i=|M_i\cap B_i|/|B_i|$ and enrichment
-\begin{equation}
-e_i=\frac{r_i}{|M_i|/N_i},
-\end{equation}
-then average by image; $e_i=1$ is uniform same-budget selection. Board-FPR is the fraction of clean templates with at least one retained detection, while FP/image preserves multiplicity; operating-point recall/F1 use class-matched IoU 0.5. Paired target-image AP$_{50:95}$ is primary. Route, latency, class, corruption, frequency, component, and negative-aware results are mechanism, diagnostic, validation-only, or post-hoc evidence and cannot replace it.
-
-\begin{figure}[!t]
+\begin{table}[t]
 \centering
-\includegraphics[width=\columnwidth]{figures/qualitative_operating_point.png}
-\caption{Model-blind DsPCBSD+ examples using validation-selected max-F1 post-processing. Green: ground truth; blue/orange: true positives; dashed red: false positives. Badges report TP/FP/FN at class-matched IoU $\geq0.5$. FO, BR, and SC denote conductor foreign object, hole breakout, and scratch.}
-\label{fig:qualitative}
-\end{figure}
-
-\begin{figure*}[!b]
-\centering
-\includegraphics[width=0.89\textwidth]{figures/accuracy_evidence.pdf}
-\caption{Paired and classwise accuracy differences. (a) Dots are paired seeds; short black ticks and labels indicate means. (b--c) Bars show per-class mean differences; orange denotes regressions. Slices are dependent diagnostics, not additional tests.}
-\label{fig:accuracy_evidence}
-\end{figure*}
-
-\subsection{Primary and Descriptive Accuracy Outcomes}
-\begin{table}[!t]
-\centering
-\caption{Architecture-controlled test AP (\%). Values are mean$\pm$sample standard deviation.}
+\caption{Architecture-controlled test AP (\%), mean$\pm$sample SD.}
 \label{tab:main}
-\begingroup
-\renewcommand{\arraystretch}{1.06}
 \fontsize{7.5}{8.3}\selectfont
 \setlength{\tabcolsep}{3.3pt}
-\begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}llS[table-format=1.0]S[table-format=2.2(2)]S[table-format=2.2(2)]@{}}
+\begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}llrcc@{}}
 \toprule
-Dataset & Model & {$n$} & {AP$_{50:95}$} & {AP$_{50}$} \\
+Dataset & Model & $n$ & AP$_{50:95}$ & AP$_{50}$ \\
 \midrule
-\multirow{2}{*}{DsPCBSD+} & YOLO11s & 7 & 46.54 +- 0.36 & 80.25 +- 0.48 \\
- & WSR-YOLO11s & 7 & 46.69 +- 0.72 & 80.46 +- 0.86 \\
-\addlinespace[1.5pt]
-\multirow{2}{*}{DeepPCB} & YOLO11s & 3 & 64.61 +- 1.91 & 94.34 +- 1.07 \\
- & WSR-YOLO11s & 3 & 68.81 +- 4.12 & 95.46 +- 0.43 \\
+\multirow{2}{*}{DsPCBSD+} & YOLO11s & 7 & $46.54\pm0.36$ & $80.25\pm0.48$ \\
+ & WSR-YOLO11s & 7 & $46.69\pm0.72$ & $80.46\pm0.86$ \\
+\multirow{2}{*}{DeepPCB} & YOLO11s & 3 & $64.61\pm1.91$ & $94.34\pm1.07$ \\
+ & WSR-YOLO11s & 3 & $68.81\pm4.12$ & $95.46\pm0.43$ \\
 \bottomrule
 \end{tabular*}
-\endgroup
 \end{table}
 
-On DsPCBSD+, WSR wins four of seven seeds but gains only 0.155 AP points: $p=0.8125$, paired $d_z=0.207$, and 95\% difference interval $[-0.535,0.844]$. DeepPCB gains 4.196 points across three wins, yet the exact test remains $p=0.25$ ($p_{\mathrm{Holm}}=0.50$). With $n=3$, 0.25 is also the smallest attainable two-sided exact Wilcoxon $p$-value, so this track cannot support a confirmatory significance claim regardless of three unanimous wins. Thus only a dataset-dependent descriptive effect is supported. For context, pinned official M-scale and transformer implementations span 49.44--53.08 AP on DsPCBSD+ with 16.49--33.51M parameters; WSR is smaller but not state of the art.
+Figure~\ref{fig:accuracy_evidence} exposes the seed and class variation behind the means. DsPCBSD+ changes sign across seeds and only base-material foreign objects improve by more than one point; two classes decline. All six DeepPCB classes rise by 2.49--5.93 points, but these dependent slices reuse the same three checkpoints and are diagnostic rather than additional tests.
 
-Seven of nine DsPCBSD+ classes rise, but five changes are at most 0.37 points and two decline; all six DeepPCB classes rise by 2.49--5.93 points under only three seeds. Figure~\ref{fig:qualitative} uses model-blind hash order and label coverage, then validation-selected thresholds for readability; it does not replace shared-protocol AP.
-
-\subsection{Seed and Error Decomposition}
-Figure~\ref{fig:accuracy_evidence} shows why means are insufficient. DsPCBSD+ changes sign across seeds, with a $-0.99$ loss versus $+0.98/+0.97$ gains; DeepPCB gains range from 1.22 to 7.11. Only base-material foreign objects exceed one point on DsPCBSD+, while short circuits and spurious copper decline; all DeepPCB classes increase, but these are dependent slices. Small/medium/large AP changes are $+0.54/-0.23/-4.23$ and $+2.98/+4.53/-0.77$ points on the two datasets; AR$_{100}$ changes by $+0.18/+2.80$. These uncorrected diagnostics show no scale-uniform effect.
-
-\subsection{Contemporary Detector Context}
-Figure~\ref{fig:context_route}(a) places the small controlled model beside recent official implementations. Every comparator uses the same DsPCBSD+ split and COCO evaluator, but retains its architecture-appropriate optimizer and schedule; the comparison is therefore contextual, not causal. All larger models exceed WSR-YOLO11s by 2.75--6.39 AP points while using 1.75$\times$--3.55$\times$ as many parameters. WSR is compact, but the evidence does not support a state-of-the-art claim or a speed ranking because a complete same-device latency matrix is unavailable.
-
-\subsection{Component and Route Audit}
-The registered 30-epoch gate admitted the prespecified P3/25\% candidate at $+1.283$ AP, $2.469\times$ enrichment, and seed-13 latency ratio 0.982 before test access. Table~\ref{tab:ablation}'s broader 35\%-data screen is contextual; its higher P3+P4 mean never replaced the formal model. Full-data matched convolution ties WSR, while equal fusion and no-HF have higher means. Three locked stability rounds also fail the later joint gate ($\Delta$AP$\geq1.0$, enrichment$\geq2.0\times$, latency$\leq1.20\times$), preventing unique attribution to wavelets, learned routing, or fusion.
-
-Across 27 same-commit jobs, WSR reaches 48.025 AP versus 46.995, but its paired interval $[-0.158,2.219]$ crosses zero. Equal fusion, no-HF, and matched convolution reach 48.314/48.296/48.057. Matched convolution adds 13.1K parameters and 0.176 GFLOPs versus WSR's 13.3K/0.038; random and fixed-Haar routes are lower, while scale-only is near baseline. The positive validation trend therefore lacks a simple component explanation.
-
-\begin{table}[t]
-\centering
-\caption{Compact validation audit. Screen gains use a 35\% training subset; full-data and stable rows use three seeds.}
-\label{tab:ablation}
-\begingroup
-\renewcommand{\arraystretch}{1.04}
-\fontsize{7.5}{8.3}\selectfont
-\setlength{\tabcolsep}{3pt}
-\begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}llS[table-format=+1.3]S[table-format=1.3]@{}}
-\toprule
-Study & Variant & {$\Delta$AP} & {Latency ($\times$)} \\
-\midrule
-\multirow{4}{*}{Screen} & P3/5\% & +0.273 & {\textemdash} \\
- & P3/25\% & +1.283 & {\textemdash} \\
- & P3/100\% & +1.185 & {\textemdash} \\
- & P3+P4/12.5\% & +1.486 & {\textemdash} \\
-\addlinespace[1.5pt]
-\multirow{4}{*}{Full data} & WSR P3/25\% & +1.030 & {\textemdash} \\
- & no HF cue & +1.301 & {\textemdash} \\
- & equal fusion & +1.319 & {\textemdash} \\
- & matched conv. & +1.062 & {\textemdash} \\
-\addlinespace[1.5pt]
-\multirow{2}{*}{Stable} & best AP & +1.240 & 1.400 \\
- & best $\leq1.20\times$ & +0.652 & 1.153 \\
-\bottomrule
-\end{tabular*}
-\endgroup
-\end{table}
-
-At 25\%, learned routes recall 79.11\%/88.68\% of box cells, giving 3.164$\times$/3.547$\times$ enrichment. On DsPCBSD+, center and train-occupancy priors are close (Holm $p=0.555/0.227$); on DeepPCB the learned route exceeds every control. Cross-image shuffling lowers enrichment, showing image dependence but not causation.
-
-Boxes follow detector letterboxing onto the routing grid. Center, training-label occupancy, activation, and Haar controls each select exactly $k$ cells. Across 64 cross-image permutations, shuffled enrichment is 1.967$\times$ [1.964,1.970] and 0.849$\times$ [0.844,0.854]; the wave-gate mean is not higher inside boxes.
+DsPCBSD+ paired effects range from $-0.99$ to $+0.98$ points, while DeepPCB gains range from $+1.22$ to $+7.11$. Small/medium/large AP changes are $+0.54/-0.23/-4.23$ on DsPCBSD+ and $+2.98/+4.53/-0.77$ on DeepPCB; AR$_{100}$ changes by $+0.18/+2.80$. The effect is therefore neither seed-stable on the primary dataset nor uniform across object scales.
 
 \begin{figure*}[!t]
 \centering
-\includegraphics[width=0.87\textwidth]{figures/context_route_evidence.pdf}
-\caption{Model-size and route context. (a) DsPCBSD+ AP versus parameters (mean$\pm$SD); V10/V11/V12/V26 abbreviate YOLO versions. (b) Mean same-budget route enrichment; dashed line: uniform expectation; occupancy uses training labels only.}
-\label{fig:context_route}
+\includegraphics[width=0.92\textwidth]{figures/accuracy_evidence.pdf}
+\caption{Paired and classwise accuracy differences. Dots are paired seeds; bars show per-class mean changes, with orange indicating regressions.}
+\label{fig:accuracy_evidence}
 \end{figure*}
+
+Figure~\ref{fig:qualitative} illustrates the validation-selected operating point. The examples are an error audit rather than independent evidence: thin defects may be localized correctly, while repeated copper texture can still generate false positives.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/qualitative_operating_point.png}
+\caption{Model-blind DsPCBSD+ examples. Green: ground truth; blue/orange: true positives; dashed red: false positives. TP/FP/FN use class-matched IoU $\geq0.5$.}
+\label{fig:qualitative}
+\end{figure}
+
+\subsection{Routing, Controls, and Cost}
+At 25\%, learned routes recall 79.11\%/88.68\% of box cells on DsPCBSD+/DeepPCB, corresponding to 3.164$\times$/3.547$\times$ enrichment. Figure~\ref{fig:context_route} shows that center and training-occupancy priors explain much of the DsPCBSD+ enrichment, whereas learned routing is stronger on DeepPCB. Cross-image shuffling lowers enrichment, confirming image dependence without proving wavelet uniqueness. Full-data matched convolution ties WSR; equal fusion and removal of HF cues do not reduce the three-seed validation mean. Thus capacity and optimization remain plausible explanations.
+
+The comparison includes uniform random, center-prior, training-occupancy, activation-energy, fixed-Haar, learned-WSR, and cross-image-shuffled routes at the same budget. This matters because high overlap is otherwise trivial when many cells are selected, and PCB layouts place defects nonuniformly. The registered validation gate admitted WSR at +1.283 AP points, 2.469$\times$ enrichment, and a preliminary 0.982 latency ratio; locked device timing did not reproduce the apparent speed advantage. Selection-stage timing is therefore not reported as test evidence.
+
+Across 27 full-data validation jobs, WSR reaches 48.025 AP versus 46.995 for the repeated baseline, with paired interval $[-0.158,2.219]$. Equal fusion, removal of HF cues, and matched convolution reach 48.314, 48.296, and 48.057 AP, respectively. These controls reproduce the positive validation trend without uniquely attributing it to wavelet cues or adaptive fusion.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/context_route_evidence.pdf}
+\caption{Model-size and route context. (a) DsPCBSD+ AP versus parameters. (b) Same-budget route enrichment; the dashed line is uniform expectation.}
+\label{fig:context_route}
+\end{figure}
+
+WSR adds 13,342 parameters (0.14\%) and 0.038 GFLOPs (0.18\%), but measured model-only latency is 1.184--1.206$\times$ baseline across datasets and FP32/FP16 settings; every cycle interval excludes one. Dense support and unfused indexing dominate, so the evidence supports sparse channel arithmetic, not acceleration. Table~\ref{tab:audit} compacts the principal control and timing results.
+
+\begin{table}[t]
+\centering
+\caption{Compact validation and latency audit. AP changes are points; ratios are WSR/baseline.}
+\label{tab:audit}
+\fontsize{7.3}{8.0}\selectfont
+\setlength{\tabcolsep}{3.0pt}
+\begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}llrr@{}}
+\toprule
+Study & Variant/setting & $\Delta$AP & Ratio \\
+\midrule
+\multirow{4}{*}{Control} & WSR P3/25\% & +1.030 & -- \\
+ & no HF cue & +1.301 & -- \\
+ & equal fusion & +1.319 & -- \\
+ & matched convolution & +1.062 & -- \\
+\addlinespace[1pt]
+\multirow{4}{*}{Latency} & DsPCBSD+ FP32 & -- & 1.184 \\
+ & DsPCBSD+ FP16 & -- & 1.194 \\
+ & DeepPCB FP32 & -- & 1.206 \\
+ & DeepPCB FP16 & -- & 1.185 \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+\subsection{Operational False Alarms}
+DeepPCB's 500 clean templates expose behavior hidden by positive-only AP. Table~\ref{tab:fpr_sweep} shows that seed-13 WSR has higher board-FPR than YOLO11s at every audited threshold. At confidence 0.25, WSR alarms on 56.6\% of boards (1.472 FP/image) versus 48.0\% (1.138). Three negative-aware stages reduce the three-seed board-FPR from 53.5\% to 27.5\% at 0.946 recall while increasing AP from 68.81 to 72.44. Figure~\ref{fig:false_alarm} also shows an exploratory paired-reference policy that reaches 7/500 alarms (1.4\%), AP 72.63, and 0.959 F1. It is a feasibility result because it is post-hoc, single-seed, and changes the input contract.
+
+\begin{table}[t]
+\centering
+\caption{Seed-13 board-FPR (\%) on 500 clean DeepPCB templates.}
+\label{tab:fpr_sweep}
+\fontsize{7.5}{8.2}\selectfont
+\setlength{\tabcolsep}{6pt}
+\begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}lrrrr@{}}
+\toprule
+Confidence & 0.05 & 0.10 & 0.25 & 0.50 \\
+\midrule
+YOLO11s & 79.0 & 66.2 & 48.0 & 28.0 \\
+WSR-YOLO11s & 87.6 & 77.0 & 56.6 & 35.0 \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+The target-only stages add clean-template negatives, tune class thresholds on validation data, and calibrate the final operating point without exposing test labels. The paired alternative encodes an aligned candidate and reference through a clipped residual representation before adaptation with synthetic negatives. Its much lower board-FPR is operationally important but not directly comparable with target-only detection: it assumes a registered clean template at inference and is evaluated on perturbations of known templates. Independent production negatives stratified by camera, illumination, layout, and lot are still required.
+
+Stage 1 uses a frozen 25\% subset of training templates as empty-label backgrounds; Stage 2 uses all 850 training templates; Stage 3 oversamples the highest-scoring training-template quartile. The seed-13 schedule is then frozen for seeds 42 and 3407. Validation-calibrated 1\% caps transfer to 1.8\%--6.2\% test board-FPR with mean recall 0.790, showing that threshold elevation alone is unstable.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/false_alarm_tradeoff.pdf}
+\caption{DeepPCB negative-template audit. (a) Target-only confidence sweep. (b) Recall--board-FPR trade-off; paired input changes the inference contract.}
+\label{fig:false_alarm}
+\end{figure}
+
+\subsection{Auxiliary Robustness Evidence}
+Across eight corruptions and five severities on DeepPCB seed 13, WSR averages 46.51 AP versus 42.68 and wins 24 of 40 conditions. Gains concentrate in brightness, contrast, Gaussian noise, and JPEG; defocus, Poisson, and speckle noise regress. Clean-normalized retention is 65.6\% versus 64.1\%, indicating conditional rather than general robustness.
+
+Input-Haar interventions give 67.43/66.22 AP for WSR/baseline under low-only reconstruction and 0.95/1.67 under high-only reconstruction. Removing LH, HL, or HH costs WSR 1.32, 0.70, or 1.68 points, respectively. Because Figure~\ref{fig:robustness} reuses a single checkpoint and modifies the detector input, it is mechanistic evidence rather than proof that the internal Haar branch causes the accuracy trend.
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{figures/robustness_frequency_compact.pdf}
-\caption{DeepPCB seed-13 diagnostics. (a) Mean WSR-minus-baseline AP over severities; orange marks negative differences. (b) AP after matched input-Haar interventions; grouped bars compare the models.}
+\caption{DeepPCB seed-13 diagnostics. (a) Mean WSR-minus-baseline AP under corruptions. (b) AP after matched input-Haar interventions.}
 \label{fig:robustness}
 \end{figure}
 
-WSR adds 13,342 parameters (0.14\%) and 0.038 GFLOPs (0.18\%), yet model-only latency is 1.184$\times$--1.206$\times$ baseline and every cycle interval excludes one. Dense support and unfused indexing dominate; we claim sparse channel computation, not acceleration.
+\balance
+\section{Findings and Limitations}
+Route enrichment is not an accuracy surrogate, arithmetic sparsity is not systems efficiency, and positive-only AP hides normal-board alarms. Evaluation must therefore combine paired held-out accuracy, synchronized device timing, negative operating points, same-budget controls, and matched capacity. Manifests, hashes, seeds, and source-bound records separate registered tests from later diagnostics; class, corruption, and threshold slices are decompositions rather than new samples.
 
-\begin{table}[t]
-\centering
-\caption{Paired model-only latency ratios with 95\% cycle intervals, WSR/baseline.}
-\label{tab:latency}
-\begingroup
-\renewcommand{\arraystretch}{1.06}
-\fontsize{7.5}{8.3}\selectfont
-\setlength{\tabcolsep}{5pt}
-\begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}lrr@{}}
-\toprule
-Dataset & FP32 & FP16 \\
-\midrule
-DsPCBSD+ & 1.184 [1.166, 1.203] & 1.194 [1.162, 1.227] \\
-DeepPCB & 1.206 [1.193, 1.220] & 1.185 [1.166, 1.204] \\
-\bottomrule
-\end{tabular*}
-\endgroup
-\end{table}
+\subsection{Image-Processing Role and Deployment Gate}
+Filtering, binarization, and edge operators remain useful for deterministic normalization, registration, and ROI masking, but fixed thresholds are brittle under illumination shifts and repeated copper patterns. WSR-YOLO learns multiscale context; its Haar router allocates computation rather than acting as a fixed edge detector. A release freezes classwise thresholds under a validation board-FPR ceiling, then reports AP$_{50:95}$, recall, board-FPR uncertainty, and end-to-end latency on the locked test. Camera, illumination, or layout changes trigger recalibration, and loss of the registered template disables the paired branch explicitly.
 
-\subsection{Operational False-Alarm Audit}
-DeepPCB's 500 clean templates expose a failure hidden by positive-only AP. At confidence 0.25, seed-13 WSR alarms on 56.6\% of boards (1.472 FP/image) versus 48.0\% (1.138); it is worse at all four thresholds (Fig.~\ref{fig:false_alarm}(a)). Three post-hoc negative-aware stages lower three-seed board-FPR from 53.5\% to 27.5\% at 0.946 recall.
-
-At confidence 0.05/0.10/0.25/0.50, WSR/base board-FPR is 87.6/77.0/56.6/35.0\% versus 79.0/66.2/48.0/28.0\%; corrected board- and count-level tests remain significant. Aligned templates identify a failure mode, not production FPR.
-
-Stages add a frozen 25\% template subset, all 850 training templates, then oversample the training-only hardest quarter. The seed-13 schedule is frozen for seeds 42/3407. AP rises 68.81$\rightarrow$72.44 and FPR falls 53.5\%$\rightarrow$27.5\%; a validation-calibrated 1\% cap transfers to 1.8--6.2\% FPR at only 0.790 mean recall.
-
-\begin{figure}[!b]
-\centering
-\includegraphics[width=\columnwidth]{figures/false_alarm_tradeoff.pdf}
-\caption{DeepPCB negative-template diagnostics. (a) Target-only confidence sweep. (b) Recall--board-FPR trade-off on a logarithmic FPR axis for Stage 3 (S3), calibrated threshold (Cal.), three-checkpoint consensus (Ens.), and paired input (Pair); Pair changes the input contract.}
-\label{fig:false_alarm}
-\end{figure}
-
-Consensus needs three checkpoints and follows test inspection. A one-pass alternative encodes candidate $c$ and aligned reference $r$ as $I_{pair}=\operatorname{clip}([c;c+s;c-s])$, where $s=4\operatorname{sign}(d)\max(|d|-3,0)$ and $d$ is their smoothed residual. Seed 13 is adapted with synthetic negatives; checkpoint, class thresholds, and a structural gate are validation-selected before the r2 replicate.
-
-The locked policy gives 7/500 alarms (95\% CI 0.56--2.86\%), AP 72.63, and 0.959 F1. It remains exploratory because it follows diagnostics, changes the input contract, and perturbs known templates.
-
-\subsection{Auxiliary Robustness and Frequency Evidence}
-Across eight corruptions and five severities on DeepPCB seed 13, WSR averages 46.51 AP versus 42.68 and wins 24/40 conditions. Gains concentrate in brightness, contrast, Gaussian noise, and JPEG; defocus, Poisson, and speckle regress. Clean-normalized retention is 65.6\%/64.1\%, indicating conditional, not general, robustness.
-
-Input-Haar interventions give 67.43/66.22 AP for WSR/base under low-only reconstruction and 0.95/1.67 under high-only. Removing LH/HL/HH costs WSR 1.32/0.70/1.68 points versus 1.59/0.92/3.68. Low-frequency structure is essential, but this external single-checkpoint intervention cannot establish internal-branch causality (Fig.~\ref{fig:robustness}).
-
-\subsection{Reproducibility and Decision Trace}
-The audit separates immutable evidence from regenerated presentation. Dataset manifests record split counts and file hashes; standardized run records bind the model family, seed, checkpoint, evaluator output, and source revision; aggregate tables and figures are regenerated from those records rather than transcribed from console output. Acceptance checks reject incomplete evaluation files, inconsistent category mappings, and pretrained transfers below the stated threshold. Selection logs identify the metric and data role used at each stage: the pilot gate chooses the formal candidate from validation data, the locked test estimates its primary effect, and later component, robustness, and negative-aware studies retain diagnostic or exploratory labels. This trace prevents a stronger post-hoc variant from silently replacing the tested hypothesis.
-
-Numerical reproducibility does not by itself imply inferential independence. Per-class, size, corruption, and threshold points reuse checkpoints and images, so they are reported as decompositions rather than additional samples. Conversely, paired seeds are the sampling unit for model comparison, and latency cycles are the unit for device timing. We retain exact seed-level values and confidence intervals even when they weaken the architectural narrative; this is necessary for distinguishing a stable mechanism from a stable detector improvement.
-
-\section{Findings, Scope, and Limitations}
-Four findings follow. Route enrichment is not an accuracy surrogate: spatial priors explain much of it, matched controls reproduce the validation trend, and the seven-seed interval crosses zero. Arithmetic sparsity is not systems efficiency because dense support and indexing make WSR slower. Positive-only AP hides normal-board alarms. Finally, full-versus-baseline ablation cannot attribute components when removing HF cues or adaptive fusion does not lower validation AP.
-
-Consequently, route visualizations need same-budget spatial controls, FLOPs need order-balanced device timing, industrial benchmarks need negative operating points, and specialized modules need matched capacity and established plug-ins. A useful routing analysis should report both recall and enrichment because high recall is trivial at a large budget, and should compare against priors that use no test labels. Likewise, a latency claim should state batch size, precision, synchronization, order, and physical device instead of inferring runtime from parameters or FLOPs. The established-attention comparison remains incomplete: CBAM-, CoordAtt-, EMA-, and SimAM-style P3 controls were not run.
-
-Reference assistance gives the best false-alarm trade-off but is post-hoc, single-seed, changed-contract, and tested on perturbations of known templates. Its 1.4\% estimate is therefore a feasibility result, not a production guarantee or a fair replacement for the target-only primary model. Further limits are three DeepPCB pairs, one GPU, incomplete comparator timing, one component-validation split, hard top-$k$, absent board/lot IDs, and unresolved similarity candidates. PCB-IND~\cite{pcbind} postdates the frozen protocol; future hypotheses and splits should precede tuning, and production claims require real negatives stratified by template, camera, illumination, and lot. Code and audit artifacts are publicly available at \url{https://github.com/master-abc/WSR-YOLO}; a complete archival release should additionally preserve frozen policies, per-image predictions, and obtainable checkpoints. Independent replication should preserve the paired-seed design and report failures as well as the selected configuration.
+Evidence is limited by three DeepPCB pairs, one GPU, incomplete comparator timing, hard top-$k$, absent board/lot IDs, and unresolved similarity candidates. Reference assistance needs preregistration and independent production negatives. Runs bind Python 3.10, PyTorch 2.5.1/CUDA 12.1, Ultralytics 8.4.50, source revision, split manifest, seed, checkpoint, and evaluator output; validation controls never read test labels.
 
 \section{Conclusion}
-WSR shows that defect-enriched routes, low nominal FLOPs, accuracy, and deployment behavior do not move together. It concentrates P3 cells inside defects at little arithmetic cost, yet establishes neither reliable primary gain nor acceleration, and target-only false alarms remain high. The contribution is an auditable boundary result and evaluation template, not WSR superiority. Future work requires established attention controls, fused kernels, more seeds, group-safe splits, and preregistered reference-assisted tests on independent production negatives.
+WSR concentrates selected P3 cells inside defects at little arithmetic cost, yet establishes neither a reliable primary accuracy gain nor acceleration, and target-only false alarms remain high. Its contribution is an auditable image-processing result and evaluation template rather than a superiority claim. Future work should test fused sparse kernels, more paired seeds, group-safe PCB splits, established attention controls, and independent reference-assisted evaluation.
+
+\section*{ACKNOWLEDGEMENTS}
+The work was supported by the Teaching, Science, and Innovation Teaching and Learning Project of Guangdong University of Science and Technology under Grant (GKJXXZ2024008) and 2025 Undergraduate Innovation and Entrepreneurship Training Program Project under Grant (202513719002).
 
 \begin{thebibliography}{99}
-\fontsize{7.8}{9.0}\selectfont
+\fontsize{7.0}{7.4}\selectfont
 \setlength{\itemsep}{0pt}
 \setlength{\parskip}{0pt}
-\bibitem{fasterrcnn} S. Ren, K. He, R. Girshick, and J. Sun, ``Faster R-CNN: Towards Real-Time Object Detection with Region Proposal Networks,'' in \textit{NeurIPS}, 2015, pp. 91--99.
-\bibitem{fpn} T.-Y. Lin et al., ``Feature Pyramid Networks for Object Detection,'' in \textit{CVPR}, 2017, pp. 2117--2125.
-\bibitem{detr} N. Carion et al., ``End-to-End Object Detection with Transformers,'' in \textit{ECCV}, 2020, pp. 213--229.
-\bibitem{deformabledetr} X. Zhu et al., ``Deformable DETR: Deformable Transformers for End-to-End Object Detection,'' in \textit{ICLR}, 2021.
-\bibitem{sparsercnn} P. Sun et al., ``Sparse R-CNN: End-to-End Object Detection with Learnable Proposals,'' in \textit{CVPR}, 2021, pp. 14454--14463.
-\bibitem{yolov10} A. Wang et al., ``YOLOv10: Real-Time End-to-End Object Detection,'' in \textit{NeurIPS}, vol. 37, pp. 107984--108011, 2024, doi: 10.52202/079017-3429.
-\bibitem{yolo11} G. Jocher and J. Qiu, ``Ultralytics YOLO11,'' version 11.0.0, 2024. [Online]. Available: \url{https://github.com/ultralytics/ultralytics}
-\bibitem{yolov12} Y. Tian, Q. Ye, and D. Doermann, ``YOLOv12: Attention-Centric Real-Time Object Detectors,'' in \textit{NeurIPS}, vol. 38, pp. 87151--87175, 2025, doi: 10.52202/085713-2627.
-\bibitem{yolo26} G. Jocher, J. Qiu, M. Liu, S. Lyu, F. C. Akyon, and M. E. Kalfaoglu, ``Ultralytics YOLO26: Unified Real-Time End-to-End Vision Models,'' arXiv:2606.03748, 2026.
-\bibitem{rtdetrv2} W. Lv et al., ``RT-DETRv2: Improved Baseline with Bag-of-Freebies for Real-Time Detection Transformer,'' arXiv:2407.17140, 2024.
-\bibitem{dfine} Y. Peng et al., ``D-FINE: Redefine Regression Task of DETRs as Fine-Grained Distribution Refinement,'' in \textit{ICLR}, 2025.
-\bibitem{deim} S. Huang et al., ``DEIM: DETR with Improved Matching for Fast Convergence,'' in \textit{CVPR}, 2025, pp. 15162--15171.
-\bibitem{rfdetr} I. Robinson et al., ``RF-DETR: Neural Architecture Search for Real-Time Detection Transformers,'' in \textit{ICLR}, 2026, arXiv:2511.09554.
-\bibitem{deeppcb} S. Tang, F. He, X. Huang, and J. Yang, ``Online PCB Defect Detector on a New PCB Defect Dataset,'' arXiv:1902.06197, 2019.
-\bibitem{tddnet} R. Ding, L. Dai, G. Li, and H. Liu, ``TDD-Net: A Tiny Defect Detection Network for Printed Circuit Boards,'' \textit{CAAI Trans. Intell. Technol.}, vol. 4, no. 2, pp. 110--116, 2019, doi: 10.1049/trit.2019.0019.
-\bibitem{dspcbsd} S. Lv et al., ``A Dataset for Deep Learning Based Detection of Printed Circuit Board Surface Defect,'' \textit{Scientific Data}, vol. 11, Art. no. 811, 2024, doi: 10.1038/s41597-024-03656-8.
-\bibitem{pcbind} H. Yan, X. Yu, B. Ma, et al., ``Industrial Printed Circuit Board Surface Defect Dataset for Object Detection,'' \textit{Scientific Data}, 2026, doi: 10.1038/s41597-026-07684-4.
-\bibitem{pcbyolo} J. Tang et al., ``PCB-YOLO: An Improved Detection Algorithm of PCB Surface Defects Based on YOLOv5,'' \textit{Sustainability}, vol. 15, no. 7, Art. no. 5963, 2023, doi: 10.3390/su15075963.
-\bibitem{yolohmc} M. Yuan et al., ``YOLO-HMC: An Improved Method for PCB Surface Defect Detection,'' \textit{IEEE Trans. Instrum. Meas.}, vol. 73, Art. no. 2001611, pp. 1--11, 2024, doi: 10.1109/TIM.2024.3351241.
-\bibitem{srnnet} L. Zhu and R. Zhao, ``A Novel PCB Surface Defect Detection Method Based on Separated Global Context Attention to Guide Residual Context Aggregation,'' \textit{Scientific Reports}, vol. 15, Art. no. 9620, 2025, doi: 10.1038/s41598-024-84961-5.
-\bibitem{pcbmmf} L. Jin, Y. Feng, H. Yang, et al., ``A Multi-Cognitive PCB Defect Detection Model Integrating Mamba,'' \textit{Scientific Reports}, vol. 16, Art. no. 19124, 2026, doi: 10.1038/s41598-026-49734-2.
-\bibitem{wavecnet} Q. Li, L. Shen, S. Guo, and Z. Lai, ``WaveCNet: Wavelet Integrated CNNs to Suppress Aliasing Effect for Noise-Robust Image Classification,'' \textit{IEEE Trans. Image Process.}, vol. 30, pp. 7074--7089, 2021, doi: 10.1109/TIP.2021.3101395.
-\bibitem{fcanet} Z. Qin, P. Zhang, F. Wu, and X. Li, ``FcaNet: Frequency Channel Attention Networks,'' in \textit{ICCV}, 2021, pp. 783--792.
-\bibitem{hwanet} B. Jin et al., ``HWANet: A Haar Wavelet-Based Attention Network for Remote Sensing Object Detection,'' \textit{PLOS ONE}, vol. 20, no. 9, Art. no. e0330759, 2025, doi: 10.1371/journal.pone.0330759.
-\bibitem{waveletyolo} X. Zhong and K. Li, ``A PCB Bare Board Defects Detection Method Based on Dual-Domain Wavelet-YOLO,'' in \textit{Proc. 8th Int. Conf. Electron. Inf. Technol. Comput. Eng. (EITCE)}, 2024, pp. 1235--1240, doi: 10.1145/3711129.3711338.
-\bibitem{sact} M. Figurnov et al., ``Spatially Adaptive Computation Time for Residual Networks,'' in \textit{CVPR}, 2017, pp. 1039--1048.
-\bibitem{sbnet} M. Ren, A. Pokrovsky, B. Yang, and R. Urtasun, ``SBNet: Sparse Blocks Network for Fast Inference,'' in \textit{CVPR}, 2018, pp. 8711--8720.
-\bibitem{dynamicconv} T. Verelst and T. Tuytelaars, ``Dynamic Convolutions: Exploiting Spatial Sparsity for Faster Inference,'' in \textit{CVPR}, 2020, pp. 2320--2329.
-\bibitem{tokenlearner} M. S. Ryoo et al., ``TokenLearner: Adaptive Space-Time Tokenization for Videos,'' in \textit{NeurIPS}, 2021, pp. 12786--12797.
-\bibitem{dynamicvit} Y. Rao et al., ``DynamicViT: Efficient Vision Transformers with Dynamic Token Sparsification,'' in \textit{NeurIPS}, 2021, pp. 13937--13949.
-\bibitem{evit} Y. Liang et al., ``Not All Patches Are What You Need: Expediting Vision Transformers via Token Reorganizations,'' in \textit{ICLR}, 2022.
-\bibitem{coco} T.-Y. Lin et al., ``Microsoft COCO: Common Objects in Context,'' in \textit{ECCV}, 2014, pp. 740--755.
+\bibitem{fasterrcnn} S. Ren et al., ``Faster R-CNN: Towards Real-Time Object Detection with Region Proposal Networks,'' \textit{NeurIPS}, 2015. \href{https://arxiv.org/abs/1506.01497}{arXiv:1506.01497}.
+\bibitem{detr} N. Carion et al., ``End-to-End Object Detection with Transformers,'' \textit{ECCV}, 2020. \href{https://arxiv.org/abs/2005.12872}{arXiv:2005.12872}.
+\bibitem{sparsercnn} P. Sun et al., ``Sparse R-CNN: End-to-End Object Detection with Learnable Proposals,'' \textit{CVPR}, 2021. \href{https://arxiv.org/abs/2011.12450}{arXiv:2011.12450}.
+\bibitem{yolo11} G. Jocher and J. Qiu, ``Ultralytics YOLO11,'' ver. 11.0.0, 2024. \href{https://github.com/ultralytics/ultralytics}{Source}.
+\bibitem{dfine} Y. Peng et al., ``D-FINE: Redefine Regression Task in DETRs as Fine-grained Distribution Refinement,'' \textit{ICLR}, 2025. \href{https://arxiv.org/abs/2410.13842}{arXiv:2410.13842}.
+\bibitem{deeppcb} S. Tang et al., ``Online PCB Defect Detector on a New PCB Defect Dataset,'' 2019. \href{https://arxiv.org/abs/1902.06197}{arXiv:1902.06197}.
+\bibitem{dspcbsd} S. Lv et al., ``A Dataset for Deep Learning Based Detection of Printed Circuit Board Surface Defect,'' \textit{Scientific Data}, vol. 11, Art. 811, 2024. \href{https://doi.org/10.1038/s41597-024-03656-8}{doi:10.1038/s41597-024-03656-8}.
+\bibitem{pcbind} H. Yan et al., ``Industrial Printed Circuit Board Surface Defect Dataset for Object Detection,'' \textit{Scientific Data}, 2026. \href{https://doi.org/10.1038/s41597-026-07684-4}{doi:10.1038/s41597-026-07684-4}.
+\bibitem{pcbyolo} J. Tang et al., ``PCB-YOLO: An Improved Detection Algorithm of PCB Surface Defects Based on YOLOv5,'' \textit{Sustainability}, vol. 15, Art. 5963, 2023. \href{https://doi.org/10.3390/su15075963}{doi:10.3390/su15075963}.
+\bibitem{yolohmc} M. Yuan et al., ``YOLO-HMC: An Improved Method for PCB Surface Defect Detection,'' \textit{IEEE Trans. Instrum. Meas.}, vol. 73, pp. 1--11, Art. 2001611, 2024. \href{https://doi.org/10.1109/TIM.2024.3351241}{doi:10.1109/TIM.2024.3351241}.
+\bibitem{wavecnet} Q. Li et al., ``WaveCNet: Wavelet Integrated CNNs to Suppress Aliasing Effect for Noise-Robust Image Classification,'' \textit{IEEE Trans. Image Process.}, vol. 30, pp. 7074--7089, 2021. \href{https://doi.org/10.1109/TIP.2021.3101395}{doi:10.1109/TIP.2021.3101395}.
+\bibitem{fcanet} Z. Qin et al., ``FcaNet: Frequency Channel Attention Networks,'' \textit{ICCV}, 2021. \href{https://arxiv.org/abs/2012.11879}{arXiv:2012.11879}.
+\bibitem{dynamicvit} Y. Rao et al., ``DynamicViT: Efficient Vision Transformers with Dynamic Token Sparsification,'' \textit{NeurIPS}, 2021. \href{https://arxiv.org/abs/2106.02034}{arXiv:2106.02034}.
+\bibitem{coco} T.-Y. Lin et al., ``Microsoft COCO: Common Objects in Context,'' \textit{ECCV}, 2014. \href{https://arxiv.org/abs/1405.0312}{arXiv:1405.0312}.
 \end{thebibliography}
 
 \end{document}

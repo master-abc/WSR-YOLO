@@ -13,6 +13,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[2]
 RESULTS = ROOT / "experiment" / "wsr" / "frozen_results"
 OUTPUT = ROOT / "paper" / "figures" / "accuracy_evidence.pdf"
+OUTPUT_PNG = ROOT / "paper" / "figures" / "accuracy_evidence.png"
 
 BASELINE = "yolo11s"
 CANDIDATE = "wsr_yolo11s_p3_r25"
@@ -111,7 +112,7 @@ def render_paired_effects(axis: plt.Axes, values_by_dataset: list[tuple[str, np.
             values,
             y,
             marker="o",
-            s=18,
+            s=23,
             color=color,
             edgecolors="white",
             linewidths=0.4,
@@ -122,7 +123,7 @@ def render_paired_effects(axis: plt.Axes, values_by_dataset: list[tuple[str, np.
             (mean, center),
             xytext=(4, 9),
             textcoords="offset points",
-            fontsize=6.4,
+            fontsize=8.2,
             color=INK,
             va="bottom",
         )
@@ -152,22 +153,22 @@ def render_class_differences(
     axis.invert_yaxis()
     axis.set_xlim(*xlim)
     axis.set_xticks(xticks)
-    axis.set_title(title, loc="left")
-    axis.set_xlabel(r"WSR $-$ YOLO11s AP (points)")
+    axis.set_title(title, loc="center")
+    axis.set_xlabel(r"$\Delta$AP$_{50:95}$ (points)")
 
 
 def render() -> None:
     plt.rcParams.update(
         {
             "font.family": "serif",
-            "font.size": 7.2,
-            "axes.titlesize": 7.6,
+            "font.size": 9.0,
+            "axes.titlesize": 9.3,
             "axes.titleweight": "semibold",
-            "axes.labelsize": 7.1,
+            "axes.labelsize": 8.7,
             "axes.edgecolor": INK,
             "axes.linewidth": 0.6,
-            "xtick.labelsize": 6.5,
-            "ytick.labelsize": 6.5,
+            "xtick.labelsize": 8.2,
+            "ytick.labelsize": 8.2,
             "xtick.major.size": 2.5,
             "ytick.major.size": 0.0,
             "xtick.major.width": 0.6,
@@ -212,7 +213,7 @@ def render() -> None:
     figure, axes = plt.subplots(
         1,
         3,
-        figsize=(7.0166667, 2.2666667),
+        figsize=(7.0166667, 2.65),
         gridspec_kw={"width_ratios": [1.16, 1.0, 0.93]},
     )
     render_paired_effects(
@@ -242,11 +243,10 @@ def render() -> None:
     for axis in axes:
         axis.spines[["top", "right"]].set_visible(False)
         axis.set_axisbelow(True)
-    figure.subplots_adjust(left=0.14, right=0.995, bottom=0.22, top=0.88, wspace=0.48)
+    figure.subplots_adjust(left=0.18, right=0.975, bottom=0.22, top=0.90, wspace=0.50)
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    # Preserve the original figure's physical dimensions so this visual-only
-    # change cannot alter the paper's float pagination.
     figure.savefig(OUTPUT)
+    figure.savefig(OUTPUT_PNG, dpi=300)
     plt.close(figure)
 
 

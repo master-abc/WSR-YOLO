@@ -1,6 +1,6 @@
-# WSR-YOLO: Wavelet-Conditioned Sparse Routing for PCB Defect Detection
+# WSR-YOLO for PCB Defect Image Processing with Wavelet-Conditioned Sparse Routing
 
-This repository contains the paper, implementation, experiment protocol, and frozen audit artifacts for **Wavelet Conditioned Sparse Routing for PCB Defect Detection**.
+This repository contains the paper, implementation, experiment protocol, and frozen audit artifacts for **WSR-YOLO for PCB Defect Image Processing with Wavelet-Conditioned Sparse Routing**.
 
 > [!IMPORTANT]
 > The formal paper evidence is produced exclusively by the audited WSR track in [`experiment/wsr/`](experiment/wsr/). This directory is the current paper's reproducibility package, not a legacy experiment.
@@ -29,8 +29,10 @@ These results support WSR as an auditable routing probe, not as a reliable accur
 
 ## Paper and Reproducibility Artifacts
 
-- English paper source: [`paper/main.tex`](paper/main.tex)
-- Chinese translation source: [`paper/main_zh.tex`](paper/main_zh.tex)
+- Final four-page paper: [`paper/main_final.pdf`](paper/main_final.pdf)
+- Editable Word paper: [`paper/main.docx`](paper/main.docx)
+- LaTeX paper source: [`paper/main.tex`](paper/main.tex)
+- Word-paper generator: [`build_four_page_docx.py`](build_four_page_docx.py)
 - Audited experiment guide: [`experiment/wsr/README.md`](experiment/wsr/README.md)
 - Current experiment status: [`experiment/wsr/STATUS.md`](experiment/wsr/STATUS.md)
 - Frozen formal results: [`experiment/wsr/frozen_results/`](experiment/wsr/frozen_results/)
